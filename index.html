@@ -286,9 +286,13 @@ const Dir={h:null,ok:false,status:"Chưa chọn thư mục",file:"du_lieu_thiet_
 /* ============ ĐIỀU HƯỚNG ============ */
 let view="home", W={level:null,grade:null,subject:null,lesson:null}, UP={cands:[],files:[],busy:false,filter:"phys"}, Q={eq:"",showAll:false,stock:"",stockLevel:"",stockKind:""};
 function go(v,reset){view=v;if(reset)W={level:null,grade:null,subject:null,lesson:null};render();window.scrollTo(0,0)}
+const isAd=()=>!Fb.cfg||Fb.isAdmin();
+const ADMIN_VIEWS=["upload","pick","stock","summary","settings","users"];
 function renderNav(){
- const items=[["home","Trang chủ"],["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"],["borrow","Mượn thiết bị"],["loans","Nhật ký mượn trả"]];
- if(Fb.isAdmin())items.push(["users","Tài khoản"]);items.push(["settings","Cài đặt"]);
+ const ad=isAd(),items=[["home","Trang chủ"]];
+ if(ad)items.push(["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]);
+ items.push(["borrow","Mượn thiết bị"],["loans","Nhật ký mượn trả"]);
+ if(ad){if(Fb.cfg)items.push(["users","Tài khoản"]);items.push(["settings","Cài đặt"])}
  $("#nav").innerHTML=items.map(([k,l])=>`<button class="${view===k?"on":""}" data-go="${k}">${l}</button>`).join("");
  let h="";
  if(Fb.cfg){
@@ -296,7 +300,7 @@ function renderNav(){
   else h=`<button class="ab login" data-act="showAuth" data-v="login">Đăng nhập</button><button class="ab reg" data-act="showAuth" data-v="register">Đăng ký</button>`}
  $("#authbar").innerHTML=h}
 function needLogin(){if(Fb.cfg&&!Fb.user){toast("Vui lòng đăng nhập hoặc đăng ký để thực hiện thao tác này",4000);AUTH.tab="login";go("login");return true}return false}
-function render(){if(view==="login"&&Fb.user)view="home";renderNav();const a=$("#app");
+function render(){if(view==="login"&&Fb.user)view="home";if(ADMIN_VIEWS.includes(view)&&!isAd())view="home";renderNav();const a=$("#app");
  if(view==="login"&&Fb.cfg){vLogin(a);return}if(view==="login")view="home";
  if(view==="users"&&!Fb.isAdmin())view="home";
  ({home:vHome,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,borrow:vBorrow,loans:vLoans,settings:vSettings,users:vUsers})[view](a)
@@ -350,10 +354,10 @@ function vHome(a){
  const nEq=S.equipment.length,nSel=Object.values(S.sel).filter(x=>x.ids&&x.ids.length).length;
  a.innerHTML=`<div class="home"><h2>Chào mừng thầy/cô</h2><p class="sub">Chọn một chức năng để bắt đầu.</p>
  <div class="grid g2">
-  <div class="tile" data-go="upload"><span class="ico">📥</span>Thêm danh mục thiết bị<small>Tải file Word / Excel bất kỳ định dạng – hệ thống tự lọc thiết bị Vật lý</small></div>
+  ${isAd()?`<div class="tile" data-go="upload"><span class="ico">📥</span>Thêm danh mục thiết bị<small>Tải file Word / Excel bất kỳ định dạng – hệ thống tự lọc thiết bị Vật lý</small></div>
   <div class="tile" data-go="pick" data-reset="1"><span class="ico">🧪</span>Chọn đồ dùng dạy học theo bài<small>Cấp → Khối → Môn → Bài → chọn thiết bị đang có</small></div>
   <div class="tile" data-go="stock"><span class="ico">🗄️</span>Kho thiết bị hiện có<small>${nEq} thiết bị trong danh mục</small></div>
-  <div class="tile" data-go="summary"><span class="ico">📋</span>Tổng hợp đã chọn<small>${nSel} bài đã có đồ dùng · xuất Excel / in</small></div>
+  <div class="tile" data-go="summary"><span class="ico">📋</span>Tổng hợp đã chọn<small>${nSel} bài đã có đồ dùng · xuất Excel / in</small></div>`:""}
   <div class="tile" data-go="borrow"><span class="ico">🤝</span>Mượn thiết bị<small>Giáo viên chọn thiết bị cần mượn cho tiết dạy</small></div>
   <div class="tile" data-go="loans"><span class="ico">📒</span>Nhật ký mượn trả<small>${S.loans.filter(l=>!l.del&&l.status==="out").length} thiết bị đang mượn · theo giáo viên · xuất Excel</small></div>
  </div></div>`}
