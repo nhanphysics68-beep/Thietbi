@@ -14,6 +14,7 @@ header .logo{width:60px;height:60px;border-radius:50%;background:#fff;object-fit
 header h1{margin:0;font-size:19px;line-height:1.2}header small{opacity:.85;display:block;font-size:13px}
 nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
 nav button{background:rgba(255,255,255,.14);border:0;color:#fff;padding:9px 14px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
+nav .who{color:#fff;font-size:13px;align-self:center;padding:0 6px;opacity:.9}
 nav button:hover{background:rgba(255,255,255,.28)}nav button.on{background:#fff;color:var(--pri)}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 h2{margin:0 0 4px;font-size:21px}.sub{color:var(--mut);margin:0 0 16px}
@@ -175,27 +176,157 @@ function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{}
 function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultState()}catch(e){S=defaultState()}
  S.settings=Object.assign({gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};}
 function save(push=true){S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Không lưu được vào trình duyệt (bộ nhớ đầy hoặc bị chặn).")}
- if(push)Sync.push();}
-/* Đồng bộ Firebase Firestore (tùy chọn). Chưa bật mặc định – dán firebaseConfig ở mục Cài đặt. */
-const Sync={db:null,fs:null,ref:null,status:"Chưa bật",
- async init(){ if(!S.settings.fbOn||!S.settings.fb.trim()){this.status="Chưa bật";return}
-  try{const cfg=JSON.parse(S.settings.fb);
-   const A=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-   const F=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-   const app=A.initializeApp(cfg);this.fs=F;this.db=F.getFirestore(app);this.ref=F.doc(this.db,"schools","hoathuan");
-   F.onSnapshot(this.ref,snap=>{if(!snap.exists())return;const r=snap.data();
-     if(r.json&&r.updatedAt>S.updatedAt){const rem=JSON.parse(r.json);rem.settings=S.settings;S=rem;S.updatedAt=r.updatedAt;save(false);render();toast("Đã cập nhật dữ liệu từ máy khác")}});
-   this.status="Đã kết nối Firebase"}catch(e){this.status="Lỗi Firebase: "+e.message;console.error(e)}},
- push(){ if(!this.db)return; const c=Object.assign({},S);delete c.settings;
-  this.fs.setDoc(this.ref,{json:JSON.stringify(c),updatedAt:S.updatedAt}).catch(e=>console.error(e))}};
+ if(push)Sync.push();Dir.push();}
+/* ============ TÀI KHOẢN & ĐỒNG BỘ (Firebase Authentication + Firestore) ============ */
+/* Dán firebaseConfig của dự án Firebase vào đây (đây là cấu hình công khai, không phải khóa bí mật).
+   Để trống thì ứng dụng chạy ở chế độ không đăng nhập. */
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyDZzLXwtVC7-HM-_ayrsdScMcPw15xSuAA", authDomain:"thietbi-8fe39.firebaseapp.com", projectId:"thietbi-8fe39",
+  storageBucket:"thietbi-8fe39.firebasestorage.app", messagingSenderId:"1074857754109", appId:"1:1074857754109:web:7550c9f5ae6180c7e46d94"
+};
+const FS_RULES=`rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function adminDoc() { return /databases/$(db)/documents/meta/admin; }
+    function userDoc(u) { return /databases/$(db)/documents/users/$(u); }
+    function isAdmin() {
+      return signedIn() && (
+        (exists(adminDoc()) && get(adminDoc()).data.uid == request.auth.uid) ||
+        (exists(userDoc(request.auth.uid)) && get(userDoc(request.auth.uid)).data.role == 'admin'));
+    }
+    function active() {
+      return signedIn() && !(exists(userDoc(request.auth.uid)) && get(userDoc(request.auth.uid)).data.disabled == true);
+    }
+    match /meta/admin {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.disabled == false &&
+        (request.resource.data.role == 'user' ||
+         (exists(adminDoc()) && get(adminDoc()).data.uid == request.auth.uid));
+      allow update, delete: if isAdmin();
+    }
+    match /schools/{id} {
+      allow read, write: if active();
+    }
+  }
+}
+`;
+const FB_URL=m=>`https://www.gstatic.com/firebasejs/10.12.2/firebase-${m}.js`;
+const FB_ERR={"auth/email-already-in-use":"Email này đã được đăng ký.","auth/invalid-email":"Email không hợp lệ.","auth/weak-password":"Mật khẩu quá yếu (tối thiểu 6 ký tự).","auth/invalid-credential":"Sai email hoặc mật khẩu.","auth/wrong-password":"Sai email hoặc mật khẩu.","auth/user-not-found":"Không tìm thấy tài khoản với email này.","auth/too-many-requests":"Thử quá nhiều lần, vui lòng đợi một lát rồi thử lại.","auth/network-request-failed":"Không có kết nối mạng.","auth/missing-password":"Vui lòng nhập mật khẩu.","permission-denied":"Firestore từ chối truy cập – kiểm tra lại Quy tắc bảo mật (Rules) trong Firebase.","auth/operation-not-allowed":"Chưa bật đăng nhập Email/Mật khẩu trong Firebase Authentication."};
+const fbMsg=e=>FB_ERR[e&&e.code]||FB_ERR[(e&&e.code||"").replace("firestore/","")]||((e&&e.message)||String(e));
+const Fb={cfg:null,ready:false,err:"",msg:"",user:null,prof:null,A:null,F:null,auth:null,db:null,registering:false,skip:false,
+ getCfg(){if(FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey)return FIREBASE_CONFIG;try{const c=JSON.parse(localStorage.getItem("hoathuan_fbcfg")||"null");return c&&c.apiKey?c:null}catch(e){return null}},
+ isAdmin(){return !!(this.prof&&this.prof.role==="admin")},
+ async init(){this.cfg=this.getCfg();if(!this.cfg)return;
+  try{const[App,Au,Fs]=await Promise.all([import(FB_URL("app")),import(FB_URL("auth")),import(FB_URL("firestore"))]);
+   this.A=Au;this.F=Fs;const app=App.initializeApp(this.cfg);this.auth=Au.getAuth(app);this.db=Fs.getFirestore(app);
+   await new Promise(res=>{let first=true;Au.onAuthStateChanged(this.auth,async u=>{if(this.registering)return;await this.onUser(u);if(first){first=false;res()}else render()})});
+   this.ready=true}catch(e){this.err="Không kết nối được Firebase: "+e.message;console.error(e)}},
+ async onUser(u){this.user=u;this.prof=null;if(!u){Sync.stop();return}
+  try{const snap=await this.F.getDoc(this.F.doc(this.db,"users",u.uid));this.prof=snap.exists()?snap.data():await this.makeProfile(u)}
+  catch(e){this.msg=fbMsg(e)}
+  if(this.prof&&this.prof.disabled){this.msg="Tài khoản đã bị khóa. Vui lòng liên hệ admin.";this.user=null;this.prof=null;await this.A.signOut(this.auth);return}
+  if(this.prof)Sync.start()},
+ async makeProfile(u,name){const{doc,getDoc,setDoc,serverTimestamp}=this.F;let role="user";
+  try{const m=await getDoc(doc(this.db,"meta","admin"));if(!m.exists()){await setDoc(doc(this.db,"meta","admin"),{uid:u.uid,email:u.email});role="admin"}}catch(e){console.warn(e)}
+  const p={name:name||u.displayName||(u.email||"").split("@")[0],email:u.email,role,disabled:false,createdAt:serverTimestamp()};
+  await setDoc(doc(this.db,"users",u.uid),p);return Object.assign({},p,{createdAt:new Date()})},
+ async login(email,pw){this.msg="";await this.A.signInWithEmailAndPassword(this.auth,email,pw)},
+ async register(name,email,pw){this.msg="";this.registering=true;
+  try{const c=await this.A.createUserWithEmailAndPassword(this.auth,email,pw);
+   try{await this.A.updateProfile(c.user,{displayName:name})}catch(e){}
+   this.user=c.user;this.prof=await this.makeProfile(c.user,name);Sync.start()}
+  finally{this.registering=false}},
+ async logout(){await this.A.signOut(this.auth);this.user=null;this.prof=null;Sync.stop()},
+ resetMail(email){return this.A.sendPasswordResetEmail(this.auth,email)},
+ async listUsers(){const q=await this.F.getDocs(this.F.collection(this.db,"users"));return q.docs.map(d=>Object.assign({uid:d.id},d.data()))},
+ updUser(uid,o){return this.F.updateDoc(this.F.doc(this.db,"users",uid),o)}};
+const Sync={ref:null,unsub:null,status:"Chưa đăng nhập",
+ start(){if(!Fb.db||!Fb.user)return;this.stop();const F=Fb.F;this.ref=F.doc(Fb.db,"schools","hoathuan");
+  this.unsub=F.onSnapshot(this.ref,snap=>{if(!snap.exists()){this.push();return}const r=snap.data();
+   if(r.json&&r.updatedAt>S.updatedAt){const rem=JSON.parse(r.json);rem.settings=S.settings;S=rem;S.updatedAt=r.updatedAt;save(false);render();toast("Đã cập nhật dữ liệu từ máy khác")}},
+   e=>{this.status="Lỗi đồng bộ: "+fbMsg(e)});this.status="Đã đồng bộ với Firebase"},
+ stop(){if(this.unsub)try{this.unsub()}catch(e){}this.unsub=null;this.ref=null;this.status="Chưa đăng nhập"},
+ push(){if(!this.ref||!Fb.user)return;const c=Object.assign({},S);delete c.settings;
+  Fb.F.setDoc(this.ref,{json:JSON.stringify(c),updatedAt:S.updatedAt,by:Fb.user.email}).catch(e=>{this.status="Lỗi đồng bộ: "+fbMsg(e)})}};
+
+/* Lưu dữ liệu vào thư mục trên máy (File System Access API – Chrome/Edge) */
+const Dir={h:null,ok:false,status:"Chưa chọn thư mục",file:"du_lieu_thiet_bi.json",t:null,sup:!!window.showDirectoryPicker,
+ idb(){return new Promise((res,rej)=>{const r=indexedDB.open("tbdh",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+ async get(){const d=await this.idb();return new Promise(res=>{const q=d.transaction("kv").objectStore("kv").get("dir");q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})},
+ async put(h){const d=await this.idb();return new Promise(res=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(h,"dir");t.oncomplete=()=>res()})},
+ async init(){if(!this.sup)return;try{const h=await this.get();if(h){this.h=h;if(await h.queryPermission({mode:"readwrite"})==="granted"){this.ok=true;await this.pull()}else this.status="Cần cấp quyền lại cho thư mục “"+h.name+"”"}}catch(e){console.error(e)}},
+ async choose(){try{const h=await showDirectoryPicker({mode:"readwrite",id:"tbdh"});this.h=h;await this.put(h);this.ok=true;await this.pull();toast("Đã chọn thư mục “"+h.name+"”")}catch(e){if(e.name!=="AbortError")toast("Không chọn được thư mục: "+e.message,4000)}render()},
+ async regrant(){try{if(await this.h.requestPermission({mode:"readwrite"})==="granted"){this.ok=true;await this.pull()}}catch(e){toast("Chưa được cấp quyền")}render()},
+ async pull(){let j=null;try{const fh=await this.h.getFileHandle(this.file);j=JSON.parse(await(await fh.getFile()).text())}catch(e){}
+  if(j&&Array.isArray(j.equipment)&&(j.updatedAt||0)>S.updatedAt){j.settings=S.settings;S=j;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}this.status="Đã nạp dữ liệu từ thư mục “"+this.h.name+"”"}
+  else{await this.write();this.status="Đang lưu vào thư mục “"+this.h.name+"”"}},
+ async write(){if(!this.h||!this.ok)return;const c=Object.assign({},S);delete c.settings;
+  try{const fh=await this.h.getFileHandle(this.file,{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(c,null,1));await w.close()}catch(e){console.error(e);this.ok=false;this.status="Mất quyền ghi thư mục – cần cấp quyền lại"}},
+ push(){clearTimeout(this.t);this.t=setTimeout(()=>this.write(),600)}};
 
 /* ============ ĐIỀU HƯỚNG ============ */
 let view="home", W={level:null,grade:null,subject:null,lesson:null}, UP={cands:[],files:[],busy:false,filter:"phys"}, Q={eq:"",showAll:false,stock:"",stockLevel:"",stockKind:""};
 function go(v,reset){view=v;if(reset)W={level:null,grade:null,subject:null,lesson:null};render();window.scrollTo(0,0)}
-function renderNav(){const items=[["home","Trang chủ"],["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"],["settings","Cài đặt"]];
- $("#nav").innerHTML=items.map(([k,l])=>`<button class="${view===k?"on":""}" data-go="${k}">${l}</button>`).join("")}
+function renderNav(){
+ if(Fb.cfg&&!Fb.user&&!Fb.skip){$("#nav").innerHTML="";return}
+ const items=[["home","Trang chủ"],["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]];
+ if(Fb.isAdmin())items.push(["users","Tài khoản"]);items.push(["settings","Cài đặt"]);
+ let h=items.map(([k,l])=>`<button class="${view===k?"on":""}" data-go="${k}">${l}</button>`).join("");
+ if(Fb.user)h+=`<span class="who" title="${esc(Fb.user.email)}">${esc(Fb.prof?Fb.prof.name:Fb.user.email)}${Fb.isAdmin()?" · Admin":""}</span><button data-act="logout">Đăng xuất</button>`;
+ $("#nav").innerHTML=h}
 function render(){renderNav();const a=$("#app");
- ({home:vHome,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,settings:vSettings})[view](a)}
+ if(Fb.cfg&&!Fb.user&&!Fb.skip){vLogin(a);return}
+ if(view==="users"&&!Fb.isAdmin())view="home";
+ ({home:vHome,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,settings:vSettings,users:vUsers})[view](a)
+ if(!Dir.ok){const b=document.createElement("div");b.className="card noprint";b.style.cssText="border-color:var(--acc);background:#fff8e6";
+  b.innerHTML=Dir.sup?`<div class="row sp"><span><b>Dữ liệu chưa được lưu vào thư mục.</b> ${esc(Dir.status)}</span><button class="btn" data-act="${Dir.h?"dirRegrant":"dirChoose"}">${Dir.h?"Cấp quyền lại":"Chọn thư mục lưu dữ liệu"}</button></div>`:`<b>Trình duyệt này không hỗ trợ lưu vào thư mục.</b> Hãy mở bằng Chrome hoặc Edge. Dữ liệu hiện chỉ lưu trong trình duyệt.`;
+  a.prepend(b)}}
+
+
+/* ============ ĐĂNG NHẬP / ĐĂNG KÝ / QUẢN LÝ TÀI KHOẢN ============ */
+let AUTH={tab:"login",busy:false,note:"",email:"",name:""};
+function vLogin(a){
+ if(Fb.err){a.innerHTML=`<div class="card" style="max-width:520px;margin:30px auto"><h2>Không kết nối được Firebase</h2><p>${esc(Fb.err)}</p><div class="row"><button class="btn" onclick="location.reload()">Thử lại</button><button class="btn sec" data-act="skipLogin">Tiếp tục không đăng nhập (chỉ dùng dữ liệu trên máy này)</button></div></div>`;return}
+ const reg=AUTH.tab==="register";
+ a.innerHTML=`<div class="card" style="max-width:440px;margin:30px auto"><div class="row" style="margin-bottom:14px"><button class="btn ${reg?"sec":""}" data-act="authTab" data-v="login" style="flex:1">Đăng nhập</button><button class="btn ${reg?"":"sec"}" data-act="authTab" data-v="register" style="flex:1">Đăng ký</button></div>
+ <h2 style="margin-bottom:12px">${reg?"Tạo tài khoản mới":"Đăng nhập hệ thống"}</h2>
+ ${Fb.msg?`<p style="color:var(--bad)"><b>${esc(Fb.msg)}</b></p>`:""}${AUTH.note?`<p style="color:var(--ok)"><b>${esc(AUTH.note)}</b></p>`:""}
+ <form data-f="${reg?"register":"login"}" autocomplete="on">
+  ${reg?`<label class="f">Họ và tên<input type="text" id="a_name" required autocomplete="name" value="${esc(AUTH.name)}"></label>`:""}
+  <label class="f">Email<input type="email" id="a_email" required autocomplete="email" style="width:100%" value="${esc(AUTH.email)}"></label>
+  <label class="f">Mật khẩu${reg?" (tối thiểu 6 ký tự)":""}<input type="password" id="a_pw" required minlength="6" autocomplete="${reg?"new-password":"current-password"}" style="width:100%"></label>
+  ${reg?`<label class="f">Nhập lại mật khẩu<input type="password" id="a_pw2" required minlength="6" autocomplete="new-password" style="width:100%"></label>`:""}
+  <button class="btn" style="width:100%" ${AUTH.busy?"disabled":""}>${AUTH.busy?"Đang xử lý…":(reg?"Đăng ký":"Đăng nhập")}</button>
+ </form>
+ ${reg?"":`<p style="margin:14px 0 0"><a href="#" data-act="forgot" style="color:var(--pri);font-weight:600">Quên mật khẩu?</a> <span class="note">– nhập email ở trên rồi bấm để nhận thư đặt lại mật khẩu.</span></p>`}
+ </div>`}
+async function authSubmit(kind){
+ const email=$("#a_email").value.trim(),pw=$("#a_pw").value;AUTH.email=email;if($("#a_name"))AUTH.name=$("#a_name").value;AUTH.note="";Fb.msg="";
+ try{
+  if(kind==="register"){const name=$("#a_name").value.trim();if(pw!==$("#a_pw2").value){Fb.msg="Hai mật khẩu không khớp.";render();return}
+   AUTH.busy=true;render();await Fb.register(name,email,pw);toast("Đăng ký thành công")}
+  else{AUTH.busy=true;render();await Fb.login(email,pw)}
+ }catch(e){Fb.msg=fbMsg(e)}
+ AUTH.busy=false;render()}
+async function authForgot(){const em=($("#a_email")||{}).value;AUTH.email=em||"";if(!em||!em.trim()){Fb.msg="Hãy nhập email vào ô Email trước.";render();return}
+ try{await Fb.resetMail(em.trim());Fb.msg="";AUTH.note="Đã gửi thư đặt lại mật khẩu tới "+em.trim()+" (nếu email đã đăng ký). Kiểm tra cả thư rác.";}catch(e){Fb.msg=fbMsg(e)}render()}
+let USERS={list:null,loading:false,err:""};
+async function loadUsers(){USERS.loading=true;USERS.err="";try{USERS.list=await Fb.listUsers()}catch(e){USERS.err=fbMsg(e)}USERS.loading=false;if(view==="users")render()}
+function fmtTs(t){try{const d=t&&t.toDate?t.toDate():(t instanceof Date?t:null);return d?d.toLocaleString("vi-VN"):""}catch(e){return""}}
+function vUsers(a){
+ if(!USERS.list&&!USERS.loading&&!USERS.err)loadUsers();
+ const L=(USERS.list||[]).slice().sort((x,y)=>(x.role==="admin"?0:1)-(y.role==="admin"?0:1)||String(x.name).localeCompare(String(y.name)));
+ a.innerHTML=`<div class="row sp"><div><h2>Quản lý tài khoản</h2><p class="sub">${USERS.list?L.length+" tài khoản":""}</p></div><button class="btn sec" data-act="reloadUsers">Tải lại</button></div>
+ ${USERS.err?`<div class="card" style="color:var(--bad)">${esc(USERS.err)}</div>`:""}
+ <div class="card"><div class="tw"><table><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Đăng ký lúc</th><th></th></tr></thead><tbody>
+ ${USERS.loading&&!USERS.list?`<tr><td colspan="6">Đang tải…</td></tr>`:L.map(u=>{const me=Fb.user&&u.uid===Fb.user.uid;return`<tr><td>${esc(u.name)}${me?' <span class="pill">Bạn</span>':""}</td><td>${esc(u.email)}</td><td>${u.role==="admin"?'<span class="badge o">Admin</span>':"Giáo viên"}</td><td>${u.disabled?'<span class="badge" style="background:var(--bad)">Đã khóa</span>':'<span class="badge">Hoạt động</span>'}</td><td class="note">${esc(fmtTs(u.createdAt))}</td>
+  <td style="white-space:nowrap"><button class="btn sec sm" data-act="resetPw" data-id="${esc(u.uid)}">Gửi email đặt lại mật khẩu</button>${me?"":` <button class="btn sec sm" data-act="toggleRole" data-id="${esc(u.uid)}">${u.role==="admin"?"Thu hồi admin":"Cấp admin"}</button> <button class="btn ${u.disabled?"":"bad"} sm" data-act="toggleDis" data-id="${esc(u.uid)}">${u.disabled?"Mở khóa":"Khóa"}</button>`}</td></tr>`}).join("")}
+ </tbody></table></div><p class="note" style="margin-top:10px">“Đặt lại mật khẩu” gửi thư của Firebase tới email người dùng; họ bấm vào liên kết trong thư để tự đặt mật khẩu mới. Admin không xem được mật khẩu của ai.</p></div>`}
 
 /* ============ TRANG CHỦ ============ */
 function vHome(a){
@@ -443,15 +574,17 @@ function exportXlsx(){const rows=summaryRows();const aoa=[["Cấp","Khối","Mô
 /* ============ CÀI ĐẶT ============ */
 function vSettings(a){const s=S.settings;
  a.innerHTML=`<h2>Cài đặt</h2><p class="sub">Dữ liệu hiện lưu trong trình duyệt của máy này. Có thể sao lưu ra file hoặc đồng bộ Firebase.</p>
+ <div class="card"><h3 style="margin-top:0">Thư mục lưu dữ liệu</h3><p>Trạng thái: <b>${Dir.ok?"Đang lưu vào thư mục “"+esc(Dir.h.name)+"” (file "+Dir.file+")":esc(Dir.status)}</b></p><button class="btn" data-act="dirChoose" ${Dir.sup?"":"disabled"}>${Dir.h?"Đổi thư mục":"Chọn thư mục"}</button><p class="note">Mọi thay đổi tự ghi vào file ${Dir.file} trong thư mục đã chọn (khóa API không được ghi vào file). Nên chọn thư mục 001.THIẾT BỊ.</p></div>
  <div class="card"><h3 style="margin-top:0">AI Gemini (lọc file danh mục)</h3>
   <label class="f">Gemini API key<input type="password" id="gk" value="${esc(s.gemini)}" autocomplete="off"></label>
   <label class="f">Mô hình<input id="gm" value="${esc(s.model)}"></label>
   <label><input type="checkbox" id="gu" ${s.useAI?"checked":""}> Mặc định dùng AI khi thêm danh mục</label>
   <p class="note">Khóa được lưu trong trình duyệt của máy này và gửi trực tiếp tới Google. Khi đưa lên GitHub công khai, nên chuyển lời gọi qua một máy chủ trung gian để không lộ khóa.</p></div>
- <div class="card"><h3 style="margin-top:0">Đồng bộ Firebase (tùy chọn)</h3>
-  <label class="f">firebaseConfig (JSON, ví dụ {"apiKey":"…","authDomain":"…","projectId":"…","appId":"…"})<textarea id="fb" rows="4">${esc(s.fb)}</textarea></label>
-  <label><input type="checkbox" id="fbo" ${s.fbOn?"checked":""}> Bật đồng bộ (Firestore: schools/hoathuan)</label>
-  <p class="note">Trạng thái: <b>${esc(Sync.status)}</b></p></div>
+ <div class="card"><h3 style="margin-top:0">Tài khoản &amp; đồng bộ Firebase</h3>
+  <p>Trạng thái: <b>${Fb.cfg?(Fb.user?"Đã đăng nhập: "+esc(Fb.user.email)+" · "+esc(Sync.status):"Đã cấu hình Firebase"):"Chưa cấu hình – ứng dụng đang chạy không cần đăng nhập"}</b></p>
+  <label class="f">firebaseConfig (JSON) – lưu cho riêng trình duyệt này. Khi đưa lên GitHub, nên dán thẳng vào hằng số FIREBASE_CONFIG trong index.html để mọi máy dùng chung<textarea id="fbc" rows="5" placeholder='{"apiKey":"…","authDomain":"…","projectId":"…","appId":"…"}'>${esc(localStorage.getItem("hoathuan_fbcfg")||"")}</textarea></label>
+  <div class="row"><button class="btn sec" data-act="saveFbCfg">Lưu cấu hình và tải lại</button><button class="btn sec" data-act="copyRules">Sao chép Rules Firestore</button></div>
+  <ol class="note"><li>Vào console.firebase.google.com → Create project.</li><li>Build → Authentication → Get started → bật <b>Email/Password</b>.</li><li>Build → Firestore Database → Create database (chế độ production), rồi tab <b>Rules</b> dán nội dung nút “Sao chép Rules” → Publish.</li><li>Project settings → Your apps → Web (&lt;/&gt;) → copy <b>firebaseConfig</b> dán vào ô trên.</li><li>Authentication → Settings → Authorized domains: thêm <b>nhanphysics68-beep.github.io</b>.</li><li>Người đầu tiên đăng ký sẽ là <b>Admin</b> – hãy tự đăng ký trước tiên.</li></ol></div>
  <div class="row"><button class="btn" data-act="saveSet">Lưu cài đặt</button><button class="btn sec" data-act="backup">Sao lưu ra file (.json)</button><label class="btn sec" style="margin:0">Khôi phục từ file<input type="file" id="rest" accept=".json" style="display:none"></label><button class="btn bad" data-act="reset">Đặt lại dữ liệu mẫu</button></div>`;
  $("#rest").onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!Array.isArray(j.equipment))throw 0;j.settings=S.settings;S=j;save();toast("Đã khôi phục");render()}catch(x){toast("File sao lưu không hợp lệ")}}}
 
@@ -472,7 +605,19 @@ document.addEventListener("click",ev=>{
   case"newEq":eqDialog(null);break;case"editEq":eqDialog(id);break;
   case"delEq":if(confirm("Xóa thiết bị này khỏi danh mục?")){S.equipment=S.equipment.filter(e=>e.id!==id);Object.values(S.sel).forEach(o=>o.ids=(o.ids||[]).filter(x=>x!==id));save();render()}break;
   case"exportXlsx":exportXlsx();break;
-  case"saveSet":{const s=S.settings;s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.0-flash";s.useAI=$("#gu").checked;s.fb=$("#fb").value;s.fbOn=$("#fbo").checked;save(false);toast("Đã lưu cài đặt");if(s.fbOn)Sync.init().then(render);else render();break}
+  case"logout":Fb.logout().then(()=>{USERS.list=null;view="home";AUTH.tab="login";AUTH.email="";AUTH.name="";Fb.msg="";AUTH.note="";render()});break;
+  case"skipLogin":Fb.skip=true;render();break;
+  case"authTab":AUTH.tab=v;Fb.msg="";AUTH.note="";render();break;
+  case"forgot":ev.preventDefault();authForgot();break;
+  case"reloadUsers":USERS.list=null;loadUsers();render();break;
+  case"resetPw":{const u=(USERS.list||[]).find(x=>x.uid===id);if(!u)break;if(!confirm("Gửi email đặt lại mật khẩu tới "+u.email+"?"))break;Fb.resetMail(u.email).then(()=>toast("Đã gửi email đặt lại mật khẩu tới "+u.email,4000)).catch(e=>toast(fbMsg(e),4500));break}
+  case"toggleDis":{const u=(USERS.list||[]).find(x=>x.uid===id);if(!u)break;if(!confirm((u.disabled?"Mở khóa":"Khóa")+" tài khoản "+u.email+"?"))break;Fb.updUser(id,{disabled:!u.disabled}).then(()=>{u.disabled=!u.disabled;render()}).catch(e=>toast(fbMsg(e),4500));break}
+  case"toggleRole":{const u=(USERS.list||[]).find(x=>x.uid===id);if(!u)break;const nr=u.role==="admin"?"user":"admin";if(!confirm((nr==="admin"?"Cấp quyền admin cho ":"Thu hồi quyền admin của ")+u.email+"?"))break;Fb.updUser(id,{role:nr}).then(()=>{u.role=nr;render()}).catch(e=>toast(fbMsg(e),4500));break}
+  case"saveFbCfg":{const t=$("#fbc").value.trim();try{if(t){const c=JSON.parse(t);if(!c.apiKey||!c.projectId)throw 0;localStorage.setItem("hoathuan_fbcfg",JSON.stringify(c))}else localStorage.removeItem("hoathuan_fbcfg");location.reload()}catch(e){toast("firebaseConfig không hợp lệ – cần JSON có apiKey và projectId",4500)}break}
+  case"copyRules":navigator.clipboard.writeText(FS_RULES).then(()=>toast("Đã sao chép Rules – dán vào Firebase → Firestore → Rules → Publish",4500)).catch(()=>{prompt("Sao chép Rules:",FS_RULES)});break;
+
+  case"dirChoose":Dir.choose();break;case"dirRegrant":Dir.regrant();break;
+  case"saveSet":{const s=S.settings;s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.0-flash";s.useAI=$("#gu").checked;save(false);toast("Đã lưu cài đặt");render();break}
   case"backup":{const c=Object.assign({},S);delete c.settings;const b=new Blob([JSON.stringify(c,null,1)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sao_luu_thiet_bi_"+new Date().toISOString().slice(0,10)+".json";a.click();break}
   case"reset":if(confirm("Đặt lại toàn bộ về dữ liệu mẫu? Danh mục và lựa chọn đã nhập sẽ mất.")){const st=S.settings;S=defaultState();S.settings=st;save();render()}break;
  }});
@@ -480,7 +625,8 @@ document.addEventListener("change",ev=>{const el=ev.target.closest("[data-act]")
  if(el.dataset.act==="upTick"){const c=UP.cands.find(x=>x.id===id);if(c){c.keep=el.checked;renderReview()}}
  if(el.dataset.act==="upEdit"){const c=UP.cands.find(x=>x.id===id);if(c)c[el.dataset.f]=el.value}});
 
-load();render();Sync.init();
+document.addEventListener("submit",ev=>{const f=ev.target.closest("form[data-f]");if(!f)return;ev.preventDefault();authSubmit(f.dataset.f)});
+(async function boot(){load();if(Fb.getCfg()){$("#app").innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">Đang kết nối…</div>';await Fb.init()}render();Dir.init().then(render)})();
 </script>
 </body>
 </html>
