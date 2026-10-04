@@ -173,9 +173,9 @@ function toast(m,ms=2600){const t=$("#toast");t.textContent=m;t.style.display="b
 /* ============ LƯU TRỮ (adapter: localStorage → Firebase) ============ */
 const KEY="hoathuan_tbdh_v1";
 let S;
-function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],settings:{gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},updatedAt:Date.now()}}
+function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},updatedAt:Date.now()}}
 function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultState()}catch(e){S=defaultState()}
- S.settings=Object.assign({gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];}
+ S.settings=Object.assign({gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
 function save(push=true){S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Không lưu được vào trình duyệt (bộ nhớ đầy hoặc bị chặn).")}
  if(push)Sync.push();Dir.push();}
 /* ============ TÀI KHOẢN & ĐỒNG BỘ (Firebase Authentication + Firestore) ============ */
@@ -591,45 +591,69 @@ function outOf(id){return liveLoans().filter(l=>l.eqId===id&&l.status==="out").r
 function availOf(e){const t=totalOf(e);return t===null?Infinity:Math.max(0,t-outOf(e.id))}
 let B={ticks:{},q:"",lv:"",only:false,name:"",cls:"",pur:"",out:"",due:"",init:false};
 let LQ={t:"",st:"out",from:"",to:"",q:""};
+function weekDates(){const d=new Date();let dow=d.getDay();const add=dow===0?1:1-dow;const m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+add),f=new Date(m.getFullYear(),m.getMonth(),m.getDate()+4);
+ const iso=x=>new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10);return{out:iso(m),due:iso(f)}}
+function teacherList(){const set=new Set(S.teachers||[]);liveLoans().forEach(l=>l.borrower&&set.add(l.borrower));if(Fb.prof&&Fb.prof.name)set.add(Fb.prof.name);if(B.name)set.add(B.name);return[...set].sort((x,y)=>x.localeCompare(y,"vi"))}
+function classList(){const set=new Set(S.classes||[]);liveLoans().forEach(l=>l.cls&&set.add(l.cls));if(B.cls)set.add(B.cls);return[...set].sort((x,y)=>x.localeCompare(y,"vi",{numeric:true}))}
+const BGRADES=[["THCS","KHTN","KHTN",6],["THCS","KHTN","KHTN",7],["THCS","KHTN","KHTN",8],["THCS","KHTN","KHTN",9],["THPT","VL","Vật lý",10],["THPT","VL","Vật lý",11],["THPT","VL","Vật lý",12]];
+function bLessons(g){const x=BGRADES.find(r=>String(r[3])===String(g));if(!x)return[];const base=(LESSONS[x[1]+"|"+g]||[]).map(([ch,ls])=>[ch,ls.map(l=>({n:l[0],t:l[1]}))]);
+ const cu=(S.customLessons[x[1]+"|"+g]||[]);if(cu.length)base.push(["Bài thêm thủ công",cu.map(l=>({n:l.n,t:l.t}))]);return base}
 function vBorrow(a){
- if(!B.init){B.init=true;B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=B.out||today();B.due=B.due||today()}
- a.innerHTML=`<div class="row sp"><div><h2>Mượn thiết bị</h2><p class="sub">Điền thông tin, tích chọn thiết bị cần mượn (nhập số lượng nếu mượn nhiều) rồi bấm “Xác nhận mượn”.</p></div><button class="btn sec" data-go="loans">Xem nhật ký mượn trả</button></div>
+ if(!B.init){B.init=true;const w=weekDates();B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=w.out;B.due=w.due;B.cond=B.cond||{};B.grade=B.grade||"";B.lesson=B.lesson||""}
+ const tl=teacherList(),cl=classList();
+ a.innerHTML=`<div class="row sp"><div><h2>Mượn thiết bị</h2><p class="sub">Chọn giáo viên, lớp, bài dạy; tích thiết bị cần mượn, chọn số lượng và tình trạng rồi bấm “Xác nhận mượn”. Ngày mượn mặc định là thứ Hai, hạn trả là thứ Sáu của tuần.</p></div><button class="btn sec" data-go="loans">Xem nhật ký mượn trả</button></div>
  <div class="card"><div class="row">
-  <label class="f" style="flex:2;min-width:220px">Giáo viên mượn<input id="b_name" value="${esc(B.name)}" placeholder="Họ và tên giáo viên" style="width:100%"></label>
-  <label class="f" style="flex:1;min-width:100px">Lớp<input id="b_cls" value="${esc(B.cls)}" placeholder="VD: 10A1" style="width:100%"></label>
-  <label class="f" style="flex:1;min-width:150px">Ngày mượn<input type="date" id="b_out" value="${esc(B.out)}"></label>
-  <label class="f" style="flex:1;min-width:150px">Hạn trả<input type="date" id="b_due" value="${esc(B.due)}"></label></div>
-  <label class="f">Bài dạy / mục đích sử dụng<input id="b_pur" value="${esc(B.pur)}" placeholder="VD: Bài 9 – Chuyển động thẳng, KHTN 7" style="width:100%"></label></div>
+  <label class="f" style="flex:2;min-width:220px">Giáo viên mượn<select id="b_name" style="width:100%"><option value="">— Chọn giáo viên —</option>${tl.map(n=>`<option ${B.name===n?"selected":""}>${esc(n)}</option>`).join("")}<option value="__new">➕ Thêm giáo viên mới…</option></select></label>
+  <label class="f" style="flex:1;min-width:130px">Lớp<select id="b_cls" style="width:100%"><option value="">— Chọn lớp —</option>${cl.map(n=>`<option ${B.cls===n?"selected":""}>${esc(n)}</option>`).join("")}<option value="__new">➕ Thêm lớp mới…</option></select></label>
+  <label class="f" style="flex:1;min-width:150px">Ngày mượn (thứ Hai)<input type="date" id="b_out" value="${esc(B.out)}"></label>
+  <label class="f" style="flex:1;min-width:150px">Hạn trả (thứ Sáu)<input type="date" id="b_due" value="${esc(B.due)}"></label></div>
+  <div class="row"><label class="f" style="flex:1;min-width:170px">Khối – môn<select id="b_g" style="width:100%"><option value="">— Chọn khối —</option>${BGRADES.map(r=>`<option value="${r[3]}" ${String(B.grade)===String(r[3])?"selected":""}>${r[2]} ${r[3]}</option>`).join("")}<option value="x" ${B.grade==="x"?"selected":""}>Khác (tự nhập)</option></select></label>
+  <label class="f" style="flex:3;min-width:240px">Bài dạy<select id="b_l" style="width:100%" ${B.grade&&B.grade!=="x"?"":"disabled"}><option value="">— Chọn bài —</option>${bLessons(B.grade).map(([ch,ls])=>`<optgroup label="${esc(ch)}">${ls.map(l=>`<option value="${esc(l.n)}" ${String(B.lesson)===String(l.n)?"selected":""}>Bài ${esc(l.n)}: ${esc(l.t)}</option>`).join("")}</optgroup>`).join("")}</select></label></div>
+  <label class="f">Mục đích sử dụng (tự điền theo bài, có thể sửa)<input id="b_pur" value="${esc(B.pur)}" style="width:100%"></label>
+  <p class="note" style="margin:6px 0 0">Chọn bài sẽ tự tích các thiết bị đã gắn cho bài đó ở mục “Chọn đồ dùng theo bài”.</p></div>
  <div class="card"><div class="row" style="margin-bottom:10px"><input type="search" id="b_q" placeholder="Tìm thiết bị…" value="${esc(B.q)}" style="flex:1;min-width:180px">
   <select id="b_lv"><option value="">Mọi cấp</option><option ${B.lv==="THCS"?"selected":""}>THCS</option><option ${B.lv==="THPT"?"selected":""}>THPT</option></select>
   <label><input type="checkbox" id="b_only" ${B.only?"checked":""}> Chỉ hiện thiết bị đã tích</label></div>
-  <div class="tw"><table><thead><tr><th></th><th>Thiết bị</th><th>Cấp</th><th>Hiện có</th><th>Đang cho mượn</th><th>Còn lại</th><th>SL mượn</th></tr></thead><tbody id="bList"></tbody></table></div>
+  <div class="tw"><table><thead><tr><th></th><th>Thiết bị</th><th>Cấp</th><th>Hiện có</th><th>Đang cho mượn</th><th>Còn lại</th><th>Số lượng mượn</th><th>Tình trạng khi mượn</th></tr></thead><tbody id="bList"></tbody></table></div>
   <div class="row sp" style="margin-top:12px"><span id="bsum" class="note"></span><div class="row"><button class="btn sec" data-act="bClear">Bỏ chọn hết</button><button class="btn" data-act="bConfirm">Xác nhận mượn</button></div></div></div>`;
- const bind=(id,k)=>{$("#"+id).oninput=e=>{B[k]=e.target.value}};bind("b_name","name");bind("b_cls","cls");bind("b_out","out");bind("b_due","due");bind("b_pur","pur");
+ $("#b_name").onchange=e=>{if(e.target.value==="__new"){const n=(prompt("Họ và tên giáo viên:")||"").trim();if(n){if(!S.teachers.includes(n))S.teachers.push(n);B.name=n;save()}render()}else B.name=e.target.value};
+ $("#b_cls").onchange=e=>{if(e.target.value==="__new"){const n=(prompt("Tên lớp (VD: 10A1):")||"").trim();if(n){if(!S.classes.includes(n))S.classes.push(n);B.cls=n;save()}render()}else B.cls=e.target.value};
+ $("#b_out").onchange=e=>{B.out=e.target.value};$("#b_due").onchange=e=>{B.due=e.target.value};$("#b_pur").oninput=e=>{B.pur=e.target.value};
+ $("#b_g").onchange=e=>{B.grade=e.target.value;B.lesson="";if(B.grade==="x"||!B.grade)B.pur="";render()};
+ $("#b_l").onchange=e=>{B.lesson=e.target.value;pickLesson()};
  $("#b_q").oninput=e=>{B.q=e.target.value;fillBorrow()};$("#b_lv").onchange=e=>{B.lv=e.target.value;fillBorrow()};$("#b_only").onchange=e=>{B.only=e.target.checked;fillBorrow()};
  fillBorrow()}
+function pickLesson(){const x=BGRADES.find(r=>String(r[3])===String(B.grade));if(!x||!B.lesson){render();return}
+ let t="";bLessons(B.grade).forEach(([,ls])=>ls.forEach(l=>{if(String(l.n)===String(B.lesson))t=l.t}));
+ B.pur=`Bài ${B.lesson}: ${t} (${x[2]} ${x[3]})`;
+ const o=S.sel[`${x[0]}|${x[3]}|${x[1]}|${B.lesson}`];B.ticks={};let miss=0;
+ ((o&&o.ids)||[]).forEach(id=>{const e=S.equipment.find(z=>z.id===id);if(!e)return;if(availOf(e)>0)B.ticks[id]=1;else miss++});
+ const n=Object.keys(B.ticks).length;render();toast(n?`Đã tích ${n} thiết bị của bài này`+(miss?` (${miss} thiết bị đã hết)`:""):"Bài này chưa gắn thiết bị – hãy tích chọn bên dưới",3500)}
 function bSum(){const n=Object.keys(B.ticks).length,t=Object.values(B.ticks).reduce((x,y)=>x+y,0);const el=$("#bsum");if(el)el.innerHTML=n?`Đã chọn <b>${n}</b> loại thiết bị · tổng <b>${t}</b> đơn vị`:"Chưa chọn thiết bị nào"}
 function fillBorrow(){const q=norm(B.q);
  let pool=S.equipment.filter(e=>(!B.lv||e.level===B.lv)&&(!q||norm(e.name+" "+e.code+" "+e.maker+" "+(e.group||"")).includes(q))&&(!B.only||B.ticks[e.id]));
  pool.sort((a,b)=>(B.ticks[b.id]?1:0)-(B.ticks[a.id]?1:0)||(availOf(b)>0?1:0)-(availOf(a)>0?1:0));
+ const qtySel=(e,av)=>{const mx=av===Infinity?30:Math.min(av,30),cur=B.ticks[e.id];return`<select data-act="bQty" data-id="${e.id}">${Array.from({length:mx},(_,i)=>`<option ${cur===i+1?"selected":""}>${i+1}</option>`).join("")}</select>`};
  $("#bList").innerHTML=pool.map(e=>{const on=!!B.ticks[e.id],av=availOf(e),o=outOf(e.id);
   return`<tr class="${on?"selrow":""}"><td><input type="checkbox" data-act="bTick" data-id="${e.id}" ${on?"checked":""} ${av===0&&!on?"disabled":""}></td>
   <td>${esc(e.name)}<div class="note">${esc(e.code)}${e.maker?" · "+esc(e.maker):""}</div></td><td>${esc(e.level)}</td><td>${esc(e.qty)} ${esc(e.unit)}</td><td>${o||""}</td>
   <td>${av===Infinity?"—":`<b style="color:${av===0?"var(--bad)":"var(--ok)"}">${av}</b>`}</td>
-  <td>${on?`<input type="number" min="1" ${av===Infinity?"":`max="${av}"`} value="${B.ticks[e.id]}" data-act="bQty" data-id="${e.id}" style="width:70px">`:""}</td></tr>`}).join("")||`<tr><td colspan="7">Không có thiết bị phù hợp.</td></tr>`;
+  <td>${on?qtySel(e,av):""}</td>
+  <td>${on?`<select data-act="bCond" data-id="${e.id}">${COND.slice(0,3).map(c=>`<option ${(B.cond[e.id]||"Tốt")===c?"selected":""}>${c}</option>`).join("")}</select>`:""}</td></tr>`}).join("")||`<tr><td colspan="8">Không có thiết bị phù hợp.</td></tr>`;
  bSum()}
 function bConfirm(){const name=(B.name||"").trim();const ids=Object.keys(B.ticks);
- if(!name){toast("Hãy nhập tên giáo viên mượn");$("#b_name").focus();return}
+ if(!name){toast("Hãy chọn giáo viên mượn");$("#b_name").focus();return}
+ if(!B.cls){toast("Hãy chọn lớp");$("#b_cls").focus();return}
  if(!ids.length){toast("Hãy tích chọn ít nhất một thiết bị");return}
  if(!B.out){toast("Hãy chọn ngày mượn");return}
  if(B.due&&B.due<B.out){toast("Hạn trả không được trước ngày mượn");return}
  for(const id of ids){const e=S.equipment.find(x=>x.id===id);if(!e)continue;const av=availOf(e);if(B.ticks[id]>av){toast(`“${e.name}” chỉ còn ${av} ${e.unit||""} – hãy giảm số lượng`,4200);return}}
  const batch=uid(),now=Date.now();
  ids.forEach(id=>{const e=S.equipment.find(x=>x.id===id);if(!e)return;
-  S.loans.push({id:uid(),batch,eqId:id,eqName:e.name,unit:e.unit||"",code:e.code||"",qty:B.ticks[id],borrower:name,uid:Fb.user?Fb.user.uid:"",cls:(B.cls||"").trim(),purpose:(B.pur||"").trim(),dateOut:B.out,due:B.due||B.out,status:"out",dateIn:"",cond:"",note:"",upd:now})});
+  S.loans.push({id:uid(),batch,eqId:id,eqName:e.name,unit:e.unit||"",code:e.code||"",qty:B.ticks[id],borrower:name,uid:Fb.user?Fb.user.uid:"",cls:(B.cls||"").trim(),purpose:(B.pur||"").trim(),dateOut:B.out,due:B.due||B.out,status:"out",condOut:(B.cond&&B.cond[id])||"Tốt",dateIn:"",cond:"",note:"",upd:now})});
  try{localStorage.setItem("hoathuan_borrower",name)}catch(e){}
  save();toast(`Đã ghi nhận ${ids.length} thiết bị mượn của ${name}`,3500);
- B.ticks={};B.pur="";B.cls="";LQ={t:"",st:"out",from:"",to:"",q:""};go("loans")}
+ B.ticks={};B.cond={};B.pur="";B.lesson="";B.grade="";LQ={t:"",st:"out",from:"",to:"",q:""};go("loans")}
 
 function loanStatus(l){if(l.status==="returned")return["Đã trả","ok"];return l.due&&l.due<today()?["Quá hạn","bad"]:["Đang mượn","acc"]}
 function loansFiltered(){const q=norm(LQ.q);return liveLoans().filter(l=>(!LQ.t||nk(l.borrower)===LQ.t)&&(LQ.st==="all"||(LQ.st==="out"?l.status==="out":LQ.st==="late"?(l.status==="out"&&l.due<today()):l.status==="returned"))
@@ -649,25 +673,26 @@ function vLoans(a){const all=liveLoans(),list=loansFiltered();
   <input type="search" id="l_q" placeholder="Tìm thiết bị, lớp, bài…" value="${esc(LQ.q)}" style="flex:1;min-width:160px"><button class="btn sec sm" data-act="lReset">Đặt lại</button></div></div>
  ${[...groups.entries()].sort((x,y)=>x[1].name.localeCompare(y[1].name,"vi")).map(([k,g])=>{const no=g.rows.filter(r=>r.status==="out").length;
   return`<div class="card"><div class="row sp"><h3 style="margin:0">${esc(g.name)} <span class="note">· ${g.rows.length} dòng · ${no} đang mượn</span></h3>${no?`<button class="btn sm noprint" data-act="lRetAll" data-t="${esc(k)}">Trả tất cả (${no})</button>`:""}</div>
-  <div class="tw" style="max-height:none;margin-top:8px"><table><thead><tr><th>#</th><th>Thiết bị</th><th>SL</th><th>Lớp</th><th>Bài / mục đích</th><th>Ngày mượn</th><th>Hạn trả</th><th>Trạng thái</th><th>Ngày trả · tình trạng</th><th class="noprint"></th></tr></thead><tbody>
-  ${g.rows.map((l,i)=>{const[st,c]=loanStatus(l);return`<tr><td>${i+1}</td><td>${esc(l.eqName)}</td><td>${esc(l.qty)} ${esc(l.unit)}</td><td>${esc(l.cls)}</td><td>${esc(l.purpose)}</td><td>${fd(l.dateOut)}</td><td>${fd(l.due)}</td><td><b style="color:var(--${c})">${st}</b></td>
+  <div class="tw" style="max-height:none;margin-top:8px"><table><thead><tr><th>#</th><th>Thiết bị</th><th>SL</th><th>Lớp</th><th>Bài / mục đích</th><th>Ngày mượn</th><th>Tình trạng mượn</th><th>Hạn trả</th><th>Trạng thái</th><th>Ngày trả · tình trạng trả</th><th class="noprint"></th></tr></thead><tbody>
+  ${g.rows.map((l,i)=>{const[st,c]=loanStatus(l);return`<tr><td>${i+1}</td><td>${esc(l.eqName)}</td><td>${esc(l.qty)} ${esc(l.unit)}</td><td>${esc(l.cls)}</td><td>${esc(l.purpose)}</td><td>${fd(l.dateOut)}</td><td>${esc(l.condOut||"Tốt")}</td><td>${fd(l.due)}</td><td><b style="color:var(--${c})">${st}</b></td>
   <td>${l.status==="returned"?fd(l.dateIn)+" · "+esc(l.cond||"Tốt")+(l.note?`<div class="note">${esc(l.note)}</div>`:""):""}</td>
   <td class="noprint" style="white-space:nowrap">${l.status==="out"?`<button class="btn sm" data-act="lRet" data-id="${l.id}">Trả</button>`:(isAd?`<button class="btn sec sm" data-act="lUndo" data-id="${l.id}">Hoàn tác</button>`:"")} ${isAd?`<button class="btn sec sm" data-act="lDel" data-id="${l.id}">Xóa</button>`:""}</td></tr>`}).join("")}</tbody></table></div></div>`}).join("")||`<div class="card">Không có dòng mượn trả nào phù hợp bộ lọc.</div>`}`;
  const f=(id,k,ev)=>{$("#"+id)[ev||"onchange"]=e=>{LQ[k]=e.target.value;vLoans(a)}};f("l_t","t");f("l_st","st");f("l_from","from");f("l_to","to");
  $("#l_q").oninput=e=>{LQ.q=e.target.value;const p=e.target.selectionStart;vLoans(a);const n=$("#l_q");n.focus();n.setSelectionRange(p,p)}}
 function retDialog(ids){ids=ids.filter(Boolean);const ls=ids.map(id=>S.loans.find(x=>x.id===id)).filter(l=>l&&l.status==="out");if(!ls.length)return;
- const d=$("#dlg");d.innerHTML=`<h3 style="margin-top:0">Ghi nhận trả thiết bị</h3><p class="note">${ls.map(l=>esc(l.eqName)+" ("+esc(l.qty)+" "+esc(l.unit)+") – "+esc(l.borrower)).join("<br>")}</p>
- <form method="dialog" id="rf"><div class="row"><label class="f" style="flex:1">Ngày trả<input type="date" id="r_d" value="${today()}"></label><label class="f" style="flex:1">Tình trạng khi trả<select id="r_c">${COND.map(c=>`<option>${c}</option>`).join("")}</select></label></div>
+ const d=$("#dlg");d.innerHTML=`<h3 style="margin-top:0">Ghi nhận trả thiết bị</h3>
+ <form method="dialog" id="rf"><label class="f">Ngày trả<input type="date" id="r_d" value="${today()}"></label>
+ <div class="tw" style="max-height:40vh"><table><thead><tr><th>Thiết bị</th><th>Giáo viên</th><th>SL</th><th>Tình trạng khi mượn</th><th>Tình trạng khi trả</th></tr></thead><tbody>${ls.map(l=>`<tr><td>${esc(l.eqName)}</td><td>${esc(l.borrower)}</td><td>${esc(l.qty)} ${esc(l.unit)}</td><td>${esc(l.condOut||"Tốt")}</td><td><select data-rc="${l.id}">${COND.map(c=>`<option ${c===(l.condOut==="Hỏng nhẹ"?"Hỏng nhẹ":"Tốt")?"selected":""}>${c}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div>
  <label class="f">Ghi chú<input id="r_n" style="width:100%" placeholder="Không bắt buộc"></label>
  <div class="row" style="justify-content:flex-end"><button type="button" class="btn sec" id="cx">Hủy</button><button class="btn" value="ok">Xác nhận trả</button></div></form>`;
  d.showModal();$("#cx").onclick=()=>d.close();
- $("#rf").onsubmit=ev=>{ev.preventDefault();const now=Date.now(),dt=$("#r_d").value||today(),c=$("#r_c").value,n=$("#r_n").value.trim();
-  ls.forEach(l=>{l.status="returned";l.dateIn=dt;l.cond=c;l.note=n;l.upd=now});save();d.close();toast("Đã ghi nhận trả "+ls.length+" thiết bị");render()}}
+ $("#rf").onsubmit=ev=>{ev.preventDefault();const now=Date.now(),dt=$("#r_d").value||today(),n=$("#r_n").value.trim();
+  ls.forEach(l=>{const sel=d.querySelector(`[data-rc="${l.id}"]`);l.status="returned";l.dateIn=dt;l.cond=sel?sel.value:"Tốt";l.note=n;l.upd=now});save();d.close();toast("Đã ghi nhận trả "+ls.length+" thiết bị");render()}}
 function exportLoans(){const list=loansFiltered().slice().sort((a,b)=>a.dateOut.localeCompare(b.dateOut)||a.borrower.localeCompare(b.borrower,"vi"));
  const aoa=[["NHẬT KÝ MƯỢN TRẢ THIẾT BỊ DẠY HỌC"],["Trường THCS&THPT Hòa Thuận – Phòng thiết bị Vật lý – Công nghệ"],["Ngày xuất: "+fd(today())+" · Số dòng: "+list.length],[],
-  ["STT","Ngày mượn","Giáo viên","Thiết bị","Ký mã hiệu","ĐVT","SL","Lớp","Bài dạy / mục đích","Hạn trả","Ngày trả","Tình trạng khi trả","Trạng thái","Ghi chú"]];
- list.forEach((l,i)=>aoa.push([i+1,fd(l.dateOut),l.borrower,l.eqName,l.code,l.unit,+l.qty||l.qty,l.cls,l.purpose,fd(l.due),fd(l.dateIn),l.status==="returned"?(l.cond||"Tốt"):"",loanStatus(l)[0],l.note||""]));
- const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[{wch:6},{wch:12},{wch:24},{wch:44},{wch:14},{wch:8},{wch:6},{wch:9},{wch:36},{wch:12},{wch:12},{wch:16},{wch:12},{wch:28}];
+  ["STT","Ngày mượn","Giáo viên","Thiết bị","Ký mã hiệu","ĐVT","SL","Lớp","Bài dạy / mục đích","Tình trạng khi mượn","Hạn trả","Ngày trả","Tình trạng khi trả","Trạng thái","Ghi chú"]];
+ list.forEach((l,i)=>aoa.push([i+1,fd(l.dateOut),l.borrower,l.eqName,l.code,l.unit,+l.qty||l.qty,l.cls,l.purpose,l.condOut||"Tốt",fd(l.due),fd(l.dateIn),l.status==="returned"?(l.cond||"Tốt"):"",loanStatus(l)[0],l.note||""]));
+ const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[{wch:6},{wch:12},{wch:24},{wch:44},{wch:14},{wch:8},{wch:6},{wch:9},{wch:36},{wch:16},{wch:12},{wch:12},{wch:16},{wch:12},{wch:28}];
  ws["!merges"]=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:8}}));
  const g=new Map();list.forEach(l=>{const k=nk(l.borrower);if(!g.has(k))g.set(k,{n:l.borrower,t:0,o:0,r:0,late:0,items:new Set()});const x=g.get(k);x.t++;x.items.add(l.eqName);if(l.status==="out"){x.o++;if(l.due<today())x.late++}else x.r++});
  const a2=[["TỔNG HỢP MƯỢN TRẢ THEO GIÁO VIÊN"],[],["STT","Giáo viên","Số dòng mượn","Đang mượn","Quá hạn","Đã trả","Số loại thiết bị"]];
@@ -716,7 +741,6 @@ document.addEventListener("click",ev=>{
   case"borrowLesson":{const o=S.sel[lessonKey()],l=findLesson(W.lesson);B.ticks={};((o&&o.ids)||[]).forEach(i=>B.ticks[i]=1);B.pur=`Bài ${W.lesson}: ${l?l.t:""} (${W.level==="THCS"?"KHTN":"Vật lý"} ${W.grade})`;B.cls=B.cls||"";go("borrow");break}
   case"bConfirm":bConfirm();break;
   case"bClear":B.ticks={};render();break;
-  case"bTick":{const e=S.equipment.find(x=>x.id===id);if(!e)break;if(B.ticks[id])delete B.ticks[id];else B.ticks[id]=1;fillBorrow();break}
   case"lRet":retDialog([id]);break;
   case"lRetAll":retDialog(S.loans.filter(l=>!l.del&&l.status==="out"&&nk(l.borrower)===el.dataset.t).map(l=>l.id));break;
   case"lDel":if(confirm("Xóa dòng mượn này khỏi nhật ký?")){const l=S.loans.find(x=>x.id===id);if(l){l.del=1;l.upd=Date.now();save();render()}}break;
@@ -741,6 +765,7 @@ document.addEventListener("click",ev=>{
  }});
 document.addEventListener("input",ev=>{const el=ev.target.closest("[data-act=bQty]");if(!el)return;const e=S.equipment.find(x=>x.id===el.dataset.id);let n=Math.max(1,parseInt(el.value)||1);B.ticks[el.dataset.id]=n;bSum()});
 document.addEventListener("change",ev=>{const el=ev.target.closest("[data-act]");if(!el)return;const id=el.dataset.id;
+ if(el.dataset.act==="bCond"){B.cond[id]=el.value}
  if(el.dataset.act==="bTick"){const e=S.equipment.find(x=>x.id===id);if(e){if(el.checked)B.ticks[id]=B.ticks[id]||1;else delete B.ticks[id];fillBorrow()}}
  if(el.dataset.act==="upTick"){const c=UP.cands.find(x=>x.id===id);if(c){c.keep=el.checked;renderReview()}}
  if(el.dataset.act==="upEdit"){const c=UP.cands.find(x=>x.id===id);if(c)c[el.dataset.f]=el.value}});
