@@ -58,6 +58,7 @@ label.f{display:block;margin-bottom:10px;font-size:13px;color:var(--mut)}label.f
 .note{font-size:13px;color:var(--mut)}.pill{display:inline-block;background:var(--soft);color:var(--pri);border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;margin-right:4px}
 tr.selrow td{background:#eef6e9}
 .foot{text-align:center;color:var(--mut);font-size:13px;padding:22px 16px 28px;line-height:1.7}.foot a{color:var(--pri);text-decoration:none}
+.locked{opacity:.55;filter:grayscale(.3);user-select:none}
 .msel{position:relative}.msel summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff;min-height:40px;font-weight:400;color:var(--ink)}.msel summary::-webkit-details-marker{display:none}.msel summary::after{content:"▾";float:right;color:var(--mut)}
 .mbox{position:absolute;z-index:20;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:8px 10px;max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px}.mbox label{display:flex;gap:8px;align-items:center;margin:0;font-weight:400}
 .chip{border:1px solid var(--pri);background:#fff;color:var(--pri);border-radius:999px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:14px}.chip.on{background:var(--pri);color:#fff}
@@ -637,7 +638,11 @@ function vBorrow(a){
  $("#b_out").onchange=e=>{B.out=e.target.value};$("#b_due").onchange=e=>{B.due=e.target.value};$("#b_pur").oninput=e=>{B.pur=e.target.value};
  const bl=$("#b_l");if(bl)bl.onchange=e=>{B.lesson=e.target.value;setPurpose();render()};
  $("#b_q").oninput=e=>{B.q=e.target.value;fillBorrow()};$("#b_only").onchange=e=>{B.only=e.target.checked;fillBorrow()};
- fillBorrow()}
+ fillBorrow();
+ if(Fb.cfg&&!Fb.user){a.querySelectorAll(".card").forEach(c=>{c.inert=true;c.classList.add("locked")});
+  const bn=document.createElement("div");bn.className="card";bn.style.cssText="border-color:var(--acc);background:#fff8e6";
+  bn.innerHTML=`<div class="row sp"><span><b>Bạn cần đăng nhập để mượn thiết bị.</b> Đăng nhập hoặc đăng ký tài khoản để chọn giáo viên, lớp, thiết bị và xác nhận mượn.</span><span class="row"><button class="btn" data-act="showAuth" data-v="login">Đăng nhập</button><button class="btn sec" data-act="showAuth" data-v="register">Đăng ký</button></span></div>`;
+  a.querySelector(".row.sp").after(bn)}}
 function setPurpose(){const x=BGRADES.find(r=>String(r[3])===String(B.grade));if(!x||!B.lesson){B.pur="";return}
  let t="";bLessons(B.grade).forEach(([,ls])=>ls.forEach(l=>{if(String(l.n)===String(B.lesson))t=l.t}));B.pur=`Bài ${B.lesson}: ${t} (${x[2]} ${x[3]})`}
 function bSum(){const n=Object.keys(B.ticks).length,t=Object.values(B.ticks).reduce((x,y)=>x+y,0);const el=$("#bsum");if(el)el.innerHTML=n?`Đã chọn <b>${n}</b> loại thiết bị · tổng <b>${t}</b> đơn vị`:"Chưa chọn thiết bị nào"}
