@@ -195,8 +195,10 @@ function toast(m,ms=2600){const t=$("#toast");t.textContent=m;t.style.display="b
 const KEY="hoathuan_tbdh_v1";
 let S;
 function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",provider:"gemini",claudeKey:"",claudeModel:"claude-haiku-4-5",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},updatedAt:0}}
+const CN_SEED = [{"id":"cn01","name":"Bộ vật liệu cơ khí","code":"CN06DCBODO1495","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[6,7,8,9]},{"id":"cn02","name":"Bộ dụng cụ cơ khí","code":"CN06DCBODO1491","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[6,7,8,9]},{"id":"cn03","name":"Bộ vật liệu điện","code":"CN06DCBODO1492","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[6,7,8,9]},{"id":"cn04","name":"Bộ dụng cụ điện","code":"DC22DCKKNK1500","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[6,7,8,9]},{"id":"cn05","name":"Dụng cụ đo các đại lượng không điện","code":"007, BT25i, BT34i, BT59i, BT05i, BT72i, BT78i, BT61i+031, BT80i, BT66i","maker":"CMA-SCIENCE","origin":"Ba Lan","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[6,7,8,9]},{"id":"cn06","name":"Bộ công cụ phát triển ứng dụng dựa trên vi điều khiển","code":"CN06DCBOST0127","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Bộ","qty":1,"group":"","level":"THCS","kind":"Dùng chung","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[8,9]},{"id":"cn07","name":"Mô hình trồng trọt công nghệ cao","code":"978-604-378-683-5","maker":"Công ty CP Nghe Nhìn Giáo Dục","origin":"Việt Nam","unit":"Tờ","qty":1,"group":"","level":"THCS","kind":"Tranh ảnh","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]},{"id":"cn08","name":"Quy trình trồng trọt","code":"978-604-378-684-2","maker":"Công ty CP Nghe Nhìn Giáo Dục","origin":"Việt Nam","unit":"Tờ","qty":1,"group":"","level":"THCS","kind":"Tranh ảnh","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]},{"id":"cn09","name":"Một số vật nuôi đặc trưng theo vùng miền","code":"978-604-378-685-9","maker":"Công ty CP Nghe Nhìn Giáo Dục","origin":"Việt Nam","unit":"Tờ","qty":1,"group":"","level":"THCS","kind":"Tranh ảnh","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]},{"id":"cn10","name":"Một số loài thủy sản có giá trị kinh tế cao","code":"978-604-378-686-6","maker":"Công ty CP Nghe Nhìn Giáo Dục","origin":"Việt Nam","unit":"Tờ","qty":1,"group":"","level":"THCS","kind":"Tranh ảnh","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]},{"id":"cn11","name":"Thiết bị đo nhiệt độ nước","code":"HI 145-00","maker":"Công ty TNHH Hana Instruments Việt Nam","origin":"Romania","unit":"Cái","qty":1,"group":"","level":"THCS","kind":"Dụng cụ","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]},{"id":"cn12","name":"Đĩa đo độ trong của nước (đĩa Secchi)","code":"CN22DCKKGC382542","maker":"Công ty TNHH Kỹ Thuật Akitech","origin":"Việt Nam","unit":"Cái","qty":1,"group":"","level":"THCS","kind":"Dụng cụ","source":"BBBG 2024 – Công nghệ THCS (HĐ 02/HĐKT/SGDĐT-MBA-HA)","subj":"CN","grades":[7]}];
+function ensureCN(){if(!S||!Array.isArray(S.equipment))return false;const have=new Set(S.equipment.map(e=>e.id));let n=0;CN_SEED.forEach(e=>{if(!have.has(e.id)){S.equipment.push(JSON.parse(JSON.stringify(e)));n++}});return n>0}
 function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultState()}catch(e){S=defaultState()}
- S.settings=Object.assign({driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",provider:"gemini",claudeKey:"",claudeModel:"claude-haiku-4-5",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
+ S.settings=Object.assign({driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",provider:"gemini",claudeKey:"",claudeModel:"claude-haiku-4-5",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];ensureCN();}
 function save(push=true,keep=false){if(!keep||!S.updatedAt)S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Không lưu được vào trình duyệt (bộ nhớ đầy hoặc bị chặn).")}
  if(push)Sync.push();Dir.push();}
 /* ============ TÀI KHOẢN & ĐỒNG BỘ (Firebase Authentication + Firestore) ============ */
@@ -298,10 +300,10 @@ const Dir={h:null,ok:false,status:"Chưa chọn thư mục",file:"du_lieu_thiet_
 let view="home", W={level:null,grade:null,subject:null,lesson:null}, UP={cands:[],files:[],busy:false,filter:"phys"}, Q={eq:"",showAll:false,stock:"",stockLevel:"",stockKind:""};
 function go(v,reset){view=v;if(reset)W={level:null,grade:null,subject:null,lesson:null};render();window.scrollTo(0,0)}
 const isAd=()=>!Fb.cfg||Fb.isAdmin();
-const ADMIN_VIEWS=["addeq","upload","pick","stock","summary","settings","users"];
+const ADMIN_VIEWS=["upload","pick","stock","summary","settings","users"];
 function renderNav(){
  const ad=isAd(),items=[["home","Trang chủ"]];
- if(ad)items.push(["addeq","Bổ sung thiết bị"],["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]);
+ if(ad)items.push(["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]);
  items.push(["borrow","Mượn thiết bị"],["loans","Nhật ký mượn trả"]);
  if(ad){if(Fb.cfg)items.push(["users","Tài khoản"]);items.push(["settings","Cài đặt"])}
  $("#nav").innerHTML=items.map(([k,l])=>`<button class="${view===k?"on":""}" data-go="${k}">${l}</button>`).join("");
@@ -311,10 +313,10 @@ function renderNav(){
   else h=`<button class="ab login" data-act="showAuth" data-v="login">Đăng nhập</button><button class="ab reg" data-act="showAuth" data-v="register">Đăng ký</button>`}
  $("#authbar").innerHTML=h}
 function needLogin(){if(Fb.cfg&&!Fb.user){toast("Vui lòng đăng nhập hoặc đăng ký để thực hiện thao tác này",4000);AUTH.tab="login";go("login");return true}return false}
-function render(){if(view==="login"&&Fb.user)view="home";if(ADMIN_VIEWS.includes(view)&&!isAd())view="home";renderNav();const a=$("#app");
+function render(){if(view==="login"&&Fb.user)view="home";if(ensureCN()&&Fb.user&&isAd())save();if(ADMIN_VIEWS.includes(view)&&!isAd())view="home";renderNav();const a=$("#app");
  if(view==="login"&&Fb.cfg){vLogin(a);return}if(view==="login")view="home";
  if(view==="users"&&!Fb.isAdmin())view="home";
- ({home:vHome,addeq:vAddEq,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,borrow:vBorrow,loans:vLoans,settings:vSettings,users:vUsers})[view](a)
+ ({home:vHome,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,borrow:vBorrow,loans:vLoans,settings:vSettings,users:vUsers})[view](a)
  if(!Dir.ok&&!(Fb.cfg&&!Fb.user)){const b=document.createElement("div");b.className="card noprint";b.style.cssText="border-color:var(--acc);background:#fff8e6";
   b.innerHTML=Dir.sup?`<div class="row sp"><span><b>Dữ liệu chưa được lưu vào thư mục.</b> ${esc(Dir.status)}</span><button class="btn" data-act="${Dir.h?"dirRegrant":"dirChoose"}">${Dir.h?"Cấp quyền lại":"Chọn thư mục lưu dữ liệu"}</button></div>`:`<b>Trình duyệt này không hỗ trợ lưu vào thư mục.</b> Hãy mở bằng Chrome hoặc Edge. Dữ liệu hiện chỉ lưu trong trình duyệt.`;
   a.prepend(b)}}
@@ -365,7 +367,7 @@ function vHome(a){
  const nEq=S.equipment.length,nSel=Object.values(S.sel).filter(x=>x.ids&&x.ids.length).length;
  a.innerHTML=`<div class="home"><h2>Chào mừng thầy/cô</h2><p class="sub">Chọn một chức năng để bắt đầu.</p>
  <div class="grid g2">
-  ${isAd()?`<div class="tile" data-go="addeq"><span class="ico">🤖</span>Bổ sung thiết bị theo môn<small>Chọn Công nghệ / Vật lý / Hóa học / Sinh học – hệ thống đọc thư mục, AI lọc theo khối, theo bài</small></div>
+  ${isAd()?`
   <div class="tile" data-go="upload"><span class="ico">📥</span>Thêm danh mục thiết bị<small>Tải file Word / Excel bất kỳ định dạng – hệ thống tự lọc thiết bị Vật lý</small></div>
   <div class="tile" data-go="pick" data-reset="1"><span class="ico">🧪</span>Chọn đồ dùng dạy học theo bài<small>Cấp → Khối → Môn → Bài → chọn thiết bị đang có</small></div>
   <div class="tile" data-go="stock"><span class="ico">🗄️</span>Kho thiết bị hiện có<small>${nEq} thiết bị trong danh mục</small></div>
@@ -774,209 +776,11 @@ function vSettings(a){const s=S.settings;
  <div class="row"><button class="btn" data-act="saveSet">Lưu cài đặt</button><button class="btn sec" data-act="backup">Sao lưu ra file (.json)</button><label class="btn sec" style="margin:0">Khôi phục từ file<input type="file" id="rest" accept=".json" style="display:none"></label><button class="btn bad" data-act="reset">Đặt lại dữ liệu mẫu</button></div>`;
  $("#rest").onchange=async e=>{if(needLogin())return;try{const j=JSON.parse(await e.target.files[0].text());if(!Array.isArray(j.equipment))throw 0;j.settings=S.settings;j.loans=mergeLoans(S.loans,j.loans);S=j;save();toast("Đã khôi phục");render()}catch(x){toast("File sao lưu không hợp lệ")}}}
 
-/* ============ BỔ SUNG THIẾT BỊ THEO MÔN (đọc thư mục + Gemini lọc theo khối, theo bài) ============ */
-const SUBJ_RE={VL:/\bvat ?l[iy]\b|physics/,HH:/\bhoa( hoc)?\b|chemis/,SH:/\bsinh( hoc)?\b|biolog/,CN:/\bcong nghe\b/};
-const KHTN_RE=/\bkhtn\b|khoa hoc tu nhien/;
-/* Nguồn: thư mục danh mục thiết bị trên máy (Google Drive for desktop) – chọn một lần, trình duyệt nhớ lại */
-const Src={h:null,ok:false,status:"Chưa chọn thư mục danh mục thiết bị",sup:!!window.showDirectoryPicker,
- async get(){const d=await Dir.idb();return new Promise(res=>{const q=d.transaction("kv").objectStore("kv").get("src");q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})},
- async put(h){const d=await Dir.idb();return new Promise(res=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(h,"src");t.oncomplete=()=>res()})},
- async init(){if(!this.sup)return;try{const h=await this.get();if(h){this.h=h;if(await h.queryPermission({mode:"read"})==="granted"){this.ok=true;this.status="Đã chọn thư mục “"+h.name+"”"}else this.status="Cần cấp quyền đọc lại cho thư mục “"+h.name+"”"}}catch(e){console.error(e)}},
- async choose(){try{const h=await showDirectoryPicker({mode:"read",id:"tbsrc"});this.h=h;await this.put(h);this.ok=true;this.status="Đã chọn thư mục “"+h.name+"”";toast("Đã chọn thư mục “"+h.name+"”")}catch(e){if(e.name!=="AbortError")toast("Không chọn được thư mục: "+e.message,4000)}render()},
- async ensure(){if(!this.h)return false;try{if(await this.h.queryPermission({mode:"read"})==="granted"){this.ok=true;return true}
-   if(await this.h.requestPermission({mode:"read"})==="granted"){this.ok=true;return true}}catch(e){}this.ok=false;return false},
- async regrant(){await this.ensure();this.status=this.ok?"Đã chọn thư mục “"+this.h.name+"”":"Chưa được cấp quyền";render()}};
-const KINDS_AI={"thiet bi":"Thiết bị","dung chung":"Dùng chung","hoa chat":"Hóa chất","tranh anh":"Tranh ảnh","phan mem/video":"Phần mềm/Video","phan mem":"Phần mềm/Video","video":"Phần mềm/Video"};
-const ADD={gap:5500,src:"drive",subj:"VL",level:"",grade:"",gen:true,busy:false,stop:false,log:[],res:null};
-const addSleep=ms=>new Promise(r=>setTimeout(r,ms));
-const addLogHtml=()=>ADD.log.map(x=>`<div style="${x.c==="bad"?"color:var(--bad)":x.c==="ok"?"color:var(--ok);font-weight:600":""}">${esc(x.m)}</div>`).join("");
-function alog(m,c){ADD.log.push({m,c:c||""});if(ADD.log.length>500)ADD.log.shift();const el=$("#addLog");if(el){el.innerHTML=addLogHtml();el.scrollTop=el.scrollHeight}}
-function addScope(){const gs=ADD.grade?[+ADD.grade]:ADD.level?GRADES_OF[ADD.level].slice():[6,7,8,9,10,11,12];
- const t=ADD.grade?"khối "+ADD.grade:ADD.level?"cấp "+ADD.level+" (khối "+gs.join(", ")+")":"mọi cấp (khối 6–12)";return{gs,t}}
-function vAddEq(a){
- const chip=(on,act,v,t)=>`<button class="chip ${on?"on":""}" data-act="${act}" data-v="${v}">${t}</button>`;
- const gs=ADD.level?GRADES_OF[ADD.level]:[6,7,8,9,10,11,12];const keyOk=!!((S.settings.provider==="claude"?S.settings.claudeKey:S.settings.gemini)||"").trim();
- a.innerHTML=`<h2>Bổ sung thiết bị theo môn</h2><p class="sub">Chọn môn → hệ thống tự vào thư mục danh mục, đọc các file Word/Excel, dùng AI Gemini lọc thiết bị theo khối và theo bài → tự thêm vào kho và vào danh sách thiết bị khi giáo viên mượn trả.</p>
- <div class="card">
-  <div class="row" style="align-items:center;margin-bottom:10px"><b>1. Môn</b>${SUBJS.map(s=>chip(ADD.subj===s[0],"addSubj",s[0],s[1])).join("")}</div>
-  <div class="row" style="align-items:center;margin-bottom:10px"><b>2. Cấp</b>${chip(!ADD.level,"addLevel","","Tất cả")}${chip(ADD.level==="THCS","addLevel","THCS","THCS")}${chip(ADD.level==="THPT","addLevel","THPT","THPT")}
-   <b style="margin-left:14px">Khối</b>${chip(!ADD.grade,"addGrade","","Tất cả")}${gs.map(g=>chip(String(ADD.grade)===String(g),"addGrade",g,g)).join("")}</div>
-  <div style="margin-bottom:10px"><b>3. Nguồn danh mục thiết bị</b>
-   <div class="row" style="margin:6px 0">${chip(ADD.src==="drive","addSrc","drive","Google Drive (theo link)")}${chip(ADD.src==="local","addSrc","local","Thư mục trên máy")}</div>
-   ${ADD.src==="drive"?`<label class="f">Link hoặc ID thư mục Google Drive<input id="addDrv" value="${esc(S.settings.driveFolder||"")}" style="width:100%"></label>
-    <label class="f">Google API key có bật Drive API (để trống = dùng khóa Firebase của dự án)<input type="password" id="addDk" value="${esc(S.settings.driveKey||"")}" autocomplete="off" style="width:100%"></label>
-    <div class="note">Thư mục cần chia sẻ ở chế độ “Bất kỳ ai có đường liên kết – Người xem”. Web tự mở thư mục con theo tên môn/khối và đọc file Word, Excel, Google Docs, Google Sheets bên trong.</div>`
-   :`Trạng thái: <b>${Src.ok?"Đang dùng thư mục “"+esc(Src.h.name)+"”":esc(Src.status)}</b>
-    <div class="row" style="margin-top:6px"><button class="btn sec sm" data-act="addChoose" ${Src.sup?"":"disabled"}>${Src.h?"Đổi thư mục":"Chọn thư mục"}</button>${Src.h&&!Src.ok?`<button class="btn sm" data-act="addRegrant">Cấp quyền lại</button>`:""}</div>
-    <div class="note">${Src.sup?"Chọn thư mục gốc chứa các file danh mục (VD: thư mục Google Drive trên máy). Web tự tìm file của môn đã chọn.":"Trình duyệt này không hỗ trợ đọc thư mục – dùng Chrome/Edge hoặc chọn file thủ công."}</div>`}</div>
-  <label style="display:block;margin-bottom:10px"><input type="checkbox" id="addGen" ${ADD.gen?"checked":""}> Môn chưa có danh sách bài thì để AI lập danh sách bài theo sách Kết nối tri thức (nên kiểm tra lại)</label>
-  <div class="row" style="align-items:center"><button class="btn" data-act="addRun" ${ADD.busy?"disabled":""}>${ADD.busy?"Đang xử lý…":"Quét thư mục và lọc bằng AI"}</button>${ADD.busy?`<button class="btn bad" data-act="addStop">Dừng</button>`:""}
-   <label class="btn sec" style="margin:0">Hoặc chọn file thủ công<input type="file" id="addFi" multiple accept=".docx,.xlsx,.xls,.xlsm,.csv,.ods" style="display:none"></label></div>
-  ${keyOk?"":`<p class="note" style="color:var(--bad)">Chưa có API key cho AI đang chọn – vào Cài đặt để nhập trước khi chạy.</p>`}<p class="note">AI đang dùng: <b>${S.settings.provider==="claude"?"Anthropic Claude ("+esc(S.settings.claudeModel||"claude-haiku-4-5")+")":"Google Gemini ("+esc(S.settings.model||"gemini-2.5-flash")+")"}</b> – đổi trong mục Cài đặt.</p></div>
- <div class="card" id="addOutCard" style="${ADD.log.length||ADD.res?"":"display:none"}"><b>Tiến trình</b><div id="addLog" class="note" style="max-height:320px;overflow:auto;margin-top:6px">${addLogHtml()}</div><div id="addRes">${addResHtml()}</div></div>`;
- const g=$("#addGen");if(g)g.onchange=e=>{ADD.gen=e.target.checked};const dv=$("#addDrv");if(dv)dv.oninput=e=>{S.settings.driveFolder=e.target.value.trim();save(false)};const dk=$("#addDk");if(dk)dk.oninput=e=>{S.settings.driveKey=e.target.value.trim();save(false)};
- const fi=$("#addFi");if(fi)fi.onchange=e=>{const fs=[...e.target.files];if(fs.length)addRun(fs.map(f=>({name:f.name,path:f.name,getFile:async()=>f})))};
- const lg=$("#addLog");if(lg)lg.scrollTop=lg.scrollHeight}
-function addResHtml(){const r=ADD.res;if(!r)return"";
- return`<hr style="border:0;border-top:1px solid var(--line);margin:12px 0"><div><b>Kết quả:</b> thêm mới <b>${r.added.length}</b> thiết bị · đã có sẵn <b>${r.merged}</b> (chỉ bổ sung khối/bài) · gắn vào <b>${r.pairs}</b> lượt bài${r.noLesson?` · <b>${r.noLesson}</b> thiết bị chưa xác định được bài (vẫn hiện theo khối)`:""}.
- <div class="row noprint" style="margin:8px 0"><button class="btn sec sm" data-act="addUndo">Hoàn tác lần thêm này</button><button class="btn sm" data-go="stock">Xem kho thiết bị</button><button class="btn sm" data-go="borrow">Sang trang Mượn thiết bị</button></div></div>
- ${r.added.length?`<div class="tw"><table><thead><tr><th>Thiết bị mới</th><th>SL</th><th>Cấp</th><th>Khối</th><th>Bài</th></tr></thead><tbody>${r.added.slice(0,150).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.qty)} ${esc(x.unit)}</td><td>${esc(x.level)}</td><td>${esc((x.grades||[]).join(", "))}</td><td>${x.nl||""}</td></tr>`).join("")}</tbody></table></div>${r.added.length>150?`<div class="note">… và ${r.added.length-150} thiết bị khác (xem ở Kho thiết bị).</div>`:""}`:""}`}
-
-async function addWalk(dh,path,depth,out){for await(const[name,h]of dh.entries()){if(name.startsWith("~$")||name.startsWith("."))continue;
- if(h.kind==="directory"){if(depth<6)await addWalk(h,path+name+"/",depth+1,out)}
- else if(/\.(docx|xlsx|xls|xlsm|csv)$/i.test(name))out.push({name,path:path+name,getFile:()=>h.getFile()})}}
-const driveId=u=>{u=String(u||"").trim();const m=u.match(/folders\/([\w-]{10,})/)||u.match(/[?&]id=([\w-]{10,})/);return m?m[1]:(/^[\w-]{10,}$/.test(u)?u:"")};
-const DRV="https://www.googleapis.com/drive/v3/files";
-const driveKey=()=>(S.settings.driveKey||"").trim()||(FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey)||"";
-async function driveJson(url){const r=await fetch(url);if(!r.ok){let m="";try{m=(await r.json()).error.message}catch(e){}
- throw new Error("Drive lỗi "+r.status+(m?": "+m.slice(0,200):"")+(r.status===403||r.status===404?" – kiểm tra thư mục đã chia sẻ “Bất kỳ ai có đường liên kết – Người xem” và đã bật Google Drive API cho khóa API":""))}return r.json()}
-async function driveWalk(id,path,depth,out,key){let tok="";
- do{const j=await driveJson(`${DRV}?q=${encodeURIComponent(`'${id}' in parents and trashed=false`)}&fields=${encodeURIComponent("nextPageToken,files(id,name,mimeType)")}&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(key)}${tok?"&pageToken="+encodeURIComponent(tok):""}`);
-  for(const f of j.files||[]){
-   if(f.mimeType==="application/vnd.google-apps.folder"){if(depth<6)await driveWalk(f.id,path+f.name+"/",depth+1,out,key);continue}
-   let name=f.name,url=`${DRV}/${f.id}?alt=media&supportsAllDrives=true&key=${encodeURIComponent(key)}`;
-   if(f.mimeType==="application/vnd.google-apps.document"){name+=".docx";url=`${DRV}/${f.id}/export?mimeType=${encodeURIComponent("application/vnd.openxmlformats-officedocument.wordprocessingml.document")}&key=${encodeURIComponent(key)}`}
-   else if(f.mimeType==="application/vnd.google-apps.spreadsheet"){name+=".xlsx";url=`${DRV}/${f.id}/export?mimeType=${encodeURIComponent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}&key=${encodeURIComponent(key)}`}
-   if(!/\.(docx|xlsx|xls|xlsm|csv)$/i.test(name)||name.startsWith("~$"))continue;
-   out.push({name,path:path+name,getFile:async()=>{const r=await fetch(url);if(!r.ok)throw new Error("Tải file lỗi "+r.status);return new File([await r.blob()],name)}})}
-  tok=j.nextPageToken||""}while(tok)}
-function pathHints(p){const n=norm(p);let lv="";if(/\bthpt\b|trung hoc pho thong/.test(n))lv="THPT";else if(/\bthcs\b|trung hoc co so/.test(n))lv="THCS";
- const gs=[...n.matchAll(/(?:khoi|lop)\s*(\d{1,2})\b/g)].map(m=>+m[1]).filter(g=>g>=6&&g<=12);return{lv,gs}}
-function addPickFiles(all,k){const sc=addScope();let skipS=0,skipL=0;
- const list=all.filter(f=>{const n=norm(f.path);const direct=SUBJ_RE[k].test(n),generic=!SUBJS.some(s=>SUBJ_RE[s[0]].test(n));
-  if(!(direct||generic)){skipS++;return false}
-  const h=pathHints(f.path);if(h.lv&&ADD.level&&h.lv!==ADD.level||(h.gs.length&&!h.gs.some(g=>sc.gs.includes(g)))){skipL++;return false}return true});
- return{list,note:[skipS?skipS+" file của môn khác":"",skipL?skipL+" file ngoài phạm vi cấp/khối":""].filter(Boolean).join(", ")}}
-
-/* Gọi Claude (Anthropic API) trực tiếp từ trình duyệt */
-async function claudeCall(prompt,max){const key=(S.settings.claudeKey||"").trim();if(!key)throw new Error("Chưa nhập Claude API key (mục Cài đặt)");
- const model=(S.settings.claudeModel||"claude-haiku-4-5").trim();let lastErr="";
- for(let t=0;t<4;t++){if(ADD.stop)throw new Error("Đã dừng");
-  let r;try{r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-   body:JSON.stringify({model,max_tokens:max||8192,temperature:0,system:"Bạn chỉ trả về JSON hợp lệ, không giải thích, không dùng khối mã markdown.",messages:[{role:"user",content:prompt}]})})}
-  catch(e){lastErr="Không kết nối được tới Claude ("+e.message+")";await addSleep(3000);continue}
-  if(r.ok){const j=await r.json();return(j.content||[]).map(c=>c.text||"").join("")}
-  let body="";try{body=(await r.json()).error.message||""}catch(e){}
-  lastErr="Claude lỗi "+r.status+(body?": "+body.slice(0,160):"");
-  if(r.status===429||r.status===529||r.status>=500){const ra=parseFloat(r.headers.get("retry-after"))||0;const w=Math.max(ra*1000,5000*(t+1));alog("Claude đang bận ("+r.status+"), chờ "+Math.round(w/1000)+" giây…");await addSleep(w);continue}
-  throw new Error(lastErr+(r.status===401?" – kiểm tra Claude API key":r.status===404?" – kiểm tra tên mô hình Claude":""))}
- throw new Error(lastErr||"Claude không phản hồi")}
-/* Gọi Gemini: tự chờ khi vượt tốc độ, tự đổi mô hình khi hết hạn mức ngày */
-async function gemini(prompt,max){if(S.settings.provider==="claude")return claudeCall(prompt,max);const key=S.settings.gemini.trim();if(!key)throw new Error("Chưa nhập Gemini API key (mục Cài đặt)");
- const models=[S.settings.model||"gemini-2.5-flash","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest"].filter((m,i,a)=>a.indexOf(m)===i);let lastErr="";
- const wait=async ms=>{const end=Date.now()+ms;while(Date.now()<end){if(ADD.stop)throw new Error("Đã dừng");await addSleep(Math.min(500,Math.max(1,end-Date.now())))}};
- for(const m of models){
-  for(let t=0;t<3;t++){
-   if(ADD.stop)throw new Error("Đã dừng");
-   const gc={responseMimeType:"application/json",temperature:0,maxOutputTokens:max||8192};if(/2\.5/.test(m)&&!/lite/.test(m))gc.thinkingConfig={thinkingBudget:0};
-   let r;try{r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})})}
-   catch(e){lastErr="Không kết nối được tới Gemini ("+e.message+")";await wait(3000);continue}
-   if(r.ok){const j=await r.json();const c=j.candidates&&j.candidates[0];if(!c||!c.content){lastErr="Gemini không trả nội dung"+(j.promptFeedback&&j.promptFeedback.blockReason?" ("+j.promptFeedback.blockReason+")":"");break}
-    return c.content.parts.map(p=>p.text||"").join("")}
-   let raw="",body="",delay=0;try{raw=await r.text();const je=JSON.parse(raw).error||{};body=je.message||"";const d=(je.details||[]).find(x=>x.retryDelay);if(d)delay=parseFloat(d.retryDelay)*1000||0}catch(e){}
-   if(!delay){const mm=body.match(/retry in ([\d.]+)s/i);if(mm)delay=parseFloat(mm[1])*1000}
-   lastErr="Gemini lỗi "+r.status+(body?": "+body.slice(0,140):"");
-   if(r.status===404||r.status===400&&/model|thinking/i.test(body))break;                 // đổi mô hình khác
-   if(r.status===429){if(/PerDay/i.test(raw)){alog("Mô hình "+m+" đã hết hạn mức trong ngày – thử mô hình khác…");break}
-    const w=Math.min(70000,Math.max(8000,delay||20000));alog("Gemini giới hạn tốc độ ("+m+"), chờ "+Math.round(w/1000)+" giây rồi thử lại…");await wait(w);continue}
-   if(r.status>=500){alog("Gemini đang bận ("+r.status+"), chờ thử lại…");await wait(5000*(t+1));continue}
-   throw new Error(lastErr)}}
- throw new Error(lastErr+(/429/.test(lastErr)?" – đã hết hạn mức Gemini miễn phí; hãy đợi (đầu ngày hôm sau) hoặc dùng key có bật thanh toán":"")||"Gemini không phản hồi")}
-function parseJsonLoose(txt){txt=String(txt||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();try{return JSON.parse(txt)}catch(e){}
- const i=txt.lastIndexOf("},");if(txt[0]==="["&&i>0){try{return JSON.parse(txt.slice(0,i+1)+"]")}catch(e){}}throw new Error("AI trả dữ liệu không đọc được")}
-const bSid=(g,k)=>sidOf(lvOf(g),k||"VL");
-function lessonExists(sid,g,n){n=String(n);const base=LESSONS[sid+"|"+g]||[];for(const[,ls]of base)for(const l of ls)if(String(l[0])===n)return true;return(S.customLessons[sid+"|"+g]||[]).some(l=>String(l.n)===n)}
-function hasLessons(sid,g){return(LESSONS[sid+"|"+g]||[]).length>0||(S.customLessons[sid+"|"+g]||[]).length>0}
-function catalogText(k,gs){const out=[];gs.forEach(g=>{const sid=bSid(g,k),items=[];(LESSONS[sid+"|"+g]||[]).forEach(([,ls])=>ls.forEach(l=>items.push(l[0]+". "+l[1])));
- (S.customLessons[sid+"|"+g]||[]).forEach(l=>items.push(l.n+". "+l.t));if(items.length)out.push("Khối "+g+": "+items.join("; "))});return out.join("\n")}
-async function genLessons(k,g){const sid=bSid(g,k),lv=lvOf(g);
- const lab=lv==="THCS"&&k!=="CN"?`Khoa học tự nhiên ${g} – chỉ phần ${subjName(k)}`:`${subjName(k)} ${g}`;
- const arr=parseJsonLoose(await gemini(`Liệt kê danh mục bài học của sách giáo khoa "${lab}" bộ Kết nối tri thức với cuộc sống (Chương trình GDPT 2018), đúng thứ tự trong sách. Trả về JSON mảng các object {"ch":"tên chương/chủ đề","n":số thứ tự bài (số nguyên theo sách),"t":"tên bài"}. Chỉ liệt kê những bài bạn chắc chắn có trong sách, không bịa thêm. Không giải thích.`));
- const seen=new Set(),list=[];(Array.isArray(arr)?arr:[]).forEach(x=>{if(!x||!x.t||x.n==null)return;const n=String(x.n).trim();if(!n||seen.has(n))return;seen.add(n);list.push({n,t:String(x.t).trim(),ch:String(x.ch||"").trim(),kw:"",ai:1})});
- if(list.length)S.customLessons[sid+"|"+g]=list;return list.length}
-function addPrompt(k,sc,path,ctx,chunk,cat){const lab=subjName(k);
- return `Bạn là trợ lý quản lý thiết bị dạy học cho trường THCS&THPT ở Việt Nam (Chương trình GDPT 2018, sách Kết nối tri thức với cuộc sống).
-Môn cần lọc: ${lab}${k!=="CN"?` (ở THCS là phần ${lab} trong môn Khoa học tự nhiên)`:""}. Phạm vi: ${sc.t}.
-File: "${path}" (tên file/thư mục có thể cho biết cấp, khối, môn).
-${ctx?`Các dòng ngay trước đoạn này (ngữ cảnh):\n${ctx}\n`:""}
-Dưới đây là các dòng trích từ file danh mục thiết bị (các ô cách nhau " | "; dòng ngắn thường là tiêu đề chương/chủ đề/bài/khối/môn – dùng làm ngữ cảnh).
-Nhiệm vụ: chỉ lấy dòng là thiết bị/dụng cụ/mô hình/tranh ảnh/hóa chất/phần mềm/video CỤ THỂ dùng để dạy môn ${lab}. Bỏ qua thiết bị của môn khác, dòng tiêu đề, dòng tổng cộng, ghi chú.
-${cat?`Danh mục bài học (số bài phải lấy đúng theo danh sách này):\n${cat}\n`:""}
-Với mỗi thiết bị trả về một object:
-{"name":tên thiết bị,"code":ký mã hiệu hoặc "","maker":hãng hoặc "","origin":xuất xứ hoặc "","unit":đơn vị tính,"qty":số lượng (số) hoặc null,"level":"THCS"|"THPT"|"","kind":"Thiết bị"|"Dùng chung"|"Hóa chất"|"Tranh ảnh"|"Phần mềm/Video","grades":[các khối dùng thiết bị này, số nguyên 6-12],"lessons":[{"g":khối,"n":số bài trong danh mục}]}
-Quy tắc: "grades" suy ra từ ngữ cảnh (khối/lớp ghi trong file, tên file/thư mục hoặc bài học); không xác định được thì []. "lessons" chỉ gồm những bài chắc chắn dùng thiết bị đó; không chắc thì []. Thiết bị dùng chung cho cả môn thì kind là "Dùng chung".
-Chỉ trả về JSON mảng, không giải thích. Nếu không có thiết bị nào phù hợp trả về [].
-
-DỮ LIỆU:
-${chunk}`}
-function addStart(){if(ADD.busy)return;if(ADD.src==="drive"){if(!driveId(S.settings.driveFolder)){toast("Hãy nhập link thư mục Google Drive",4000);return}addRun(null);return}if(!Src.h){toast("Hãy chọn thư mục danh mục thiết bị trước (hoặc chọn file thủ công)",4500);return}
- Src.ensure().then(ok=>{if(!ok){toast("Chưa được cấp quyền đọc thư mục",4000);render();return}addRun(null)})}
-async function addEnsure(k,gs){if(!ADD.gen)return;
- for(const g of gs){const sid=bSid(g,k);if(hasLessons(sid,g))continue;if(ADD.stop)throw new Error("Đã dừng");
-  alog(`Chưa có danh sách bài ${subjName(k)} khối ${g} – nhờ AI lập…`);
-  try{const n=await genLessons(k,g);alog(n?`  → đã lập ${n} bài (có thể sửa/ bổ sung trong mục Chọn đồ dùng theo bài).`:"  → AI không lập được danh sách bài.");save(false)}catch(e){if(e.message==="Đã dừng")throw e;alog("  → lỗi: "+e.message,"bad")}
-  await addSleep(ADD.gap)}}
-async function addRun(files){
- if(ADD.busy)return;if(needLogin())return;
- const pv=S.settings.provider==="claude";if(!((pv?S.settings.claudeKey:S.settings.gemini)||"").trim()){toast("Chưa nhập API key của "+(pv?"Claude":"Gemini")+" – vào Cài đặt để nhập",4500);return}ADD.gap=pv?1000:5500;
- const k=ADD.subj,sc=addScope();ADD.busy=true;ADD.stop=false;ADD.log=[];ADD.res=null;render();
- try{
-  alog(`Môn: ${subjName(k)} · phạm vi: ${sc.t}`);
-  let list=files;
-  if(!list){const all=[];if(ADD.src==="drive"){const id=driveId(S.settings.driveFolder);if(!id)throw new Error("Chưa có link/ID thư mục Google Drive");alog("Đang quét thư mục Google Drive…");await driveWalk(id,"",0,all,driveKey())}else{alog("Đang quét thư mục “"+Src.h.name+"”…");await addWalk(Src.h,"",0,all)}const p=addPickFiles(all,k);list=p.list;
-   alog(`Tìm thấy ${all.length} file; chọn ${list.length} file phù hợp${p.note?" (bỏ qua "+p.note+")":""}.`)}
-  if(!list.length)throw new Error("Không có file nào phù hợp. Kiểm tra lại thư mục, môn, cấp/khối đã chọn.");
-  // 2. đọc từng file và nhờ AI lọc
-  const raw=[];let nFiles=0,nLines=0,failStreak=0;
-  for(const f of list){if(ADD.stop)throw new Error("Đã dừng");
-   let rows;try{rows=await readFile(await f.getFile())}catch(e){alog(`✗ ${f.path}: ${e.message}`,"bad");continue}
-   const lines=rows.map(r=>uniqRow(r).join(" | ")).filter(x=>x&&x!=="§TABLE");if(!lines.length){alog(`– ${f.path}: file trống`);continue}
-   const fh=pathHints(f.path);let fg=sc.gs.filter(g=>fh.gs.length?fh.gs.includes(g):(fh.lv?lvOf(g)===fh.lv:true));if(!fg.length)fg=sc.gs;
-   await addEnsure(k,fg);const cat=catalogText(k,fg);
-   nFiles++;nLines+=lines.length;const head=lines.slice(0,3).join("\n");const CH=50;let bad=0;const nCh=Math.ceil(lines.length/CH);let got=0;
-   alog(`Đọc ${f.path}: ${lines.length} dòng → ${nCh} đợt AI`);
-   for(let i=0;i<lines.length;i+=CH){if(ADD.stop)throw new Error("Đã dừng");
-    const ctx=(i?lines.slice(Math.max(0,i-3),i):[]).concat(i?[]:[]).join("\n")||head;
-    try{const arr=parseJsonLoose(await gemini(addPrompt(k,sc,f.path,i?ctx:"",lines.slice(i,i+CH).join("\n"),cat)));failStreak=0;
-     (Array.isArray(arr)?arr:[]).forEach(o=>{if(o&&o.name)raw.push(Object.assign({},o,{_src:f.path}));});got+=Array.isArray(arr)?arr.length:0}
-    catch(e){if(e.message==="Đã dừng")throw e;failStreak++;bad++;alog(`  ✗ đợt ${i/CH+1}/${nCh}: ${e.message}`,"bad");if(failStreak>=3)throw new Error("AI lỗi liên tiếp – kiểm tra API key, mô hình, hạn mức rồi chạy lại.")}
-    await addSleep(ADD.gap)}
-   alog(bad?`  ! ${f.name}: AI chọn ${got} mục, ${bad}/${nCh} đợt bị lỗi`:`  ✓ ${f.name}: AI chọn ${got} mục`,bad?"bad":"")}
-  // 3. gộp, chuẩn hóa, thêm vào kho và gắn theo bài
-  const eqMap=new Map();
-  raw.forEach(o=>{const name=String(o.name||"").trim();if(name.length<2)return;
-   let gr=[...new Set((Array.isArray(o.grades)?o.grades:[]).map(Number).filter(g=>sc.gs.includes(g)))];
-   let lv=o.level==="THCS"||o.level==="THPT"?o.level:(gr.length?lvOf(gr[0]):(ADD.level||pathHints(o._src).lv||""));
-   if(!lv){const h=pathHints(o._src);lv=h.lv||(sc.gs[0]<=9?"THCS":"THPT")}
-   if(ADD.level&&lv!==ADD.level)return;if(!gr.length&&o.grades&&o.grades.length)return;   // AI nói khối ngoài phạm vi
-   const kind=KINDS_AI[norm(o.kind||"")]||(KINDS.includes(o.kind)?o.kind:"Thiết bị");
-   const e={id:uid(),name,code:String(o.code||"").trim(),maker:String(o.maker||"").trim(),origin:String(o.origin||"").trim(),unit:String(o.unit||"").trim(),qty:o.qty==null||o.qty===""?"":(isNaN(+o.qty)?String(o.qty):+o.qty),group:"",level:lv,kind,source:o._src+" (AI)",subj:k,grades:gr};
-   const key=keyOf(e)+"|"+k;let m=eqMap.get(key);if(!m){m={e,pairs:new Map()};eqMap.set(key,m)}else m.e.grades=[...new Set(m.e.grades.concat(gr))].sort((a,b)=>a-b);
-   (Array.isArray(o.lessons)?o.lessons:[]).forEach(l=>{const g=+l.g,n=l.n;if(!sc.gs.includes(g)||n==null)return;const sid=bSid(g,k);if(!lessonExists(sid,g,n))return;
-    m.pairs.set(`${lvOf(g)}|${g}|${sid}|${n}`,1);if(!m.e.grades.includes(g))m.e.grades.push(g)})});
-  const have=new Map(S.equipment.map(e=>[keyOf(e)+"|"+eqSubj(e),e]));
-  const rec={id:uid(),t:Date.now(),subj:k,newIds:[],pairs:[]};const added=[];let merged=0,nPairs=0,noLesson=0;
-  eqMap.forEach((m,key)=>{let e=have.get(key);
-   if(e){merged++;e.grades=[...new Set((e.grades||[]).concat(m.e.grades))].sort((a,b)=>a-b);if(!e.subj)e.subj=k}
-   else{e=m.e;e.grades.sort((a,b)=>a-b);S.equipment.push(e);rec.newIds.push(e.id);have.set(key,e)}
-   let nl=0;m.pairs.forEach((_,sk)=>{const o=S.sel[sk]=S.sel[sk]||{ids:[],note:""};if(!o.ids.includes(e.id)){o.ids.push(e.id);rec.pairs.push([sk,e.id]);nPairs++}nl++});
-   if(rec.newIds.includes(e.id)){added.push({name:e.name,qty:e.qty,unit:e.unit,level:e.level,grades:e.grades,nl});if(!nl&&e.kind!=="Dùng chung")noLesson++}});
-  S.lastImport=rec;save();
-  ADD.res={added,merged,pairs:nPairs,noLesson};
-  alog(`Hoàn tất: ${nFiles} file, ${nLines} dòng → AI nhận diện ${eqMap.size} thiết bị; thêm mới ${added.length}, đã có sẵn ${merged}, gắn ${nPairs} lượt bài.`,"ok");
- }catch(e){alog(e.message==="Đã dừng"?"Đã dừng theo yêu cầu.":"LỖI: "+e.message,"bad")}
- finally{ADD.busy=false;render()}}
-function addUndo(){const r=S.lastImport;if(!r){toast("Không còn lần thêm nào để hoàn tác");return}
- if(!confirm("Hoàn tác lần thêm gần nhất: xóa "+r.newIds.length+" thiết bị mới và các gắn bài tương ứng?"))return;
- const ids=new Set(r.newIds);S.equipment=S.equipment.filter(e=>!ids.has(e.id));
- r.pairs.forEach(([sk,id])=>{const o=S.sel[sk];if(o)o.ids=o.ids.filter(x=>x!==id)});Object.values(S.sel).forEach(o=>o.ids=(o.ids||[]).filter(x=>!ids.has(x)));
- S.lastImport=null;ADD.res=null;ADD.log=[];save();toast("Đã hoàn tác");render()}
-
 /* ============ SỰ KIỆN ============ */
 document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!ev.target.closest("#b_cls_d"))md.open=false;
  const g=ev.target.closest("[data-go]");if(g){go(g.dataset.go,g.dataset.reset==="1"||g.dataset.go==="pick"&&view!=="pick");return}
  const el=ev.target.closest("[data-act]");if(!el)return;const act=el.dataset.act,v=el.dataset.v,id=el.dataset.id;
- if(["toggleEq","addLesson","upAdd","newEq","editEq","delEq","bConfirm","bClsNew","lRet","lRetAll","lDel","lUndo","reset","addRun","addUndo"].includes(act)&&needLogin())return;
+ if(["toggleEq","addLesson","upAdd","newEq","editEq","delEq","bConfirm","bClsNew","lRet","lRetAll","lDel","lUndo","reset"].includes(act)&&needLogin())return;
  switch(act){
   case"setLevel":W.level=v;render();break;
   case"setGrade":W.grade=+v;render();break;
@@ -997,11 +801,7 @@ document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!e
   case"bLevel":if(B.level!==v){B.level=v;B.grade="";B.lesson="";B.pur=""}render();break;
   case"bGrade":B.grade=v;B.lesson="";B.pur="";render();break;
   case"bSubj":B.subj=v;B.lesson="";B.pur="";render();break;
-  case"addSubj":ADD.subj=v;render();break;case"addSrc":ADD.src=v;render();break;
-  case"addLevel":ADD.level=v;if(v&&ADD.grade&&lvOf(ADD.grade)!==v)ADD.grade="";render();break;
-  case"addGrade":ADD.grade=v;if(v)ADD.level=lvOf(v);render();break;
-  case"addChoose":Src.choose();break;case"addRegrant":Src.regrant();break;
-  case"addRun":addStart();break;case"addStop":ADD.stop=true;alog("Đang dừng…");break;case"addUndo":addUndo();break;
+
   case"lRet":retDialog([id]);break;
   case"lRetAll":retDialog(S.loans.filter(l=>!l.del&&l.status==="out"&&nk(l.borrower)===el.dataset.t).map(l=>l.id));break;
   case"lDel":if(confirm("Xóa dòng mượn này khỏi nhật ký?")){const l=S.loans.find(x=>x.id===id);if(l){l.del=1;l.upd=Date.now();save();render()}}break;
@@ -1034,7 +834,7 @@ document.addEventListener("change",ev=>{const el=ev.target.closest("[data-act]")
  if(el.dataset.act==="upEdit"){const c=UP.cands.find(x=>x.id===id);if(c)c[el.dataset.f]=el.value}});
 
 document.addEventListener("submit",ev=>{const f=ev.target.closest("form[data-f]");if(!f)return;ev.preventDefault();authSubmit(f.dataset.f)});
-(async function boot(){load();if(Fb.getCfg()){$("#app").innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">Đang kết nối…</div>';await Fb.init()}render();Dir.init().then(render);Src.init().then(()=>{if(view==="addeq")render()})})();
+(async function boot(){load();if(Fb.getCfg()){$("#app").innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">Đang kết nối…</div>';await Fb.init()}render();Dir.init().then(render)})();
 </script>
 </body>
 </html>
