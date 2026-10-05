@@ -121,9 +121,19 @@ const SEED = [{"id": "s1", "name": "Biến áp nguồn", "code": "M10-AD240 -5",
 
 /* Danh mục bài – sách Kết nối tri thức (phần Vật lí). Mỗi bài: [số, tên, "từ khóa gợi ý thiết bị"] */
 const CURR = {
- THCS:{ name:"Cấp THCS", grades:[6,7,8,9], subjects:[{id:"KHTN",name:"Khoa học tự nhiên (Vật lý)"}] },
- THPT:{ name:"Cấp THPT", grades:[10,11,12], subjects:[{id:"VL",name:"Vật lý"}] }
+ THCS:{ name:"Cấp THCS", grades:[6,7,8,9], subjects:[{id:"KHTN",name:"Khoa học tự nhiên (Vật lý)"},{id:"KHTN_HH",name:"Khoa học tự nhiên (Hóa học)"},{id:"KHTN_SH",name:"Khoa học tự nhiên (Sinh học)"},{id:"CN",name:"Công nghệ"}] },
+ THPT:{ name:"Cấp THPT", grades:[10,11,12], subjects:[{id:"VL",name:"Vật lý"},{id:"HH",name:"Hóa học"},{id:"SH",name:"Sinh học"},{id:"CN",name:"Công nghệ"}] }
 };
+/* Môn: khóa chung VL/HH/SH/CN (lưu ở thiết bị: e.subj, mặc định VL). Mã môn trong danh mục bài (sid) ở THCS: KHTN, KHTN_HH, KHTN_SH, CN; ở THPT: VL, HH, SH, CN */
+const SUBJS=[["VL","Vật lý"],["HH","Hóa học"],["SH","Sinh học"],["CN","Công nghệ"]];
+const subjName=k=>(SUBJS.find(s=>s[0]===k)||[k,k])[1];
+const lvOf=g=>+g<=9?"THCS":"THPT";
+const GRADES_OF={THCS:[6,7,8,9],THPT:[10,11,12]};
+const sidOf=(lv,k)=>lv==="THCS"?({VL:"KHTN",HH:"KHTN_HH",SH:"KHTN_SH",CN:"CN"}[k]||k):k;
+const skOf=sid=>({KHTN:"VL",KHTN_HH:"HH",KHTN_SH:"SH"}[sid]||sid);
+const eqSubj=e=>e.subj||"VL";
+const subLab=(lv,k)=>lv==="THCS"&&k!=="CN"?"KHTN – "+subjName(k):subjName(k);
+const KINDS=["Thiết bị","Dùng chung","Hóa chất","Tranh ảnh","Phần mềm/Video"];
 const LESSONS = {
  "KHTN|6":[
   ["Chương 1: Mở đầu về Khoa học tự nhiên",[[1,"Giới thiệu về khoa học tự nhiên",""],[2,"An toàn trong phòng thực hành","kinh bao ho|gang tay"],[3,"Sử dụng kính lúp","kinh lup"],[4,"Sử dụng kính hiển vi quang học",""],[5,"Đo chiều dài","thuoc|chieu dai"],[6,"Đo khối lượng","can dien tu|khoi luong|qua kim loai"],[7,"Đo thời gian","bam giay|do thoi gian"],[8,"Đo nhiệt độ","nhiet ke|nhiet do|cam bien nhiet"]]],
@@ -184,9 +194,9 @@ function toast(m,ms=2600){const t=$("#toast");t.textContent=m;t.style.display="b
 /* ============ LƯU TRỮ (adapter: localStorage → Firebase) ============ */
 const KEY="hoathuan_tbdh_v1";
 let S;
-function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},updatedAt:0}}
+function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},updatedAt:0}}
 function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultState()}catch(e){S=defaultState()}
- S.settings=Object.assign({gemini:"",model:"gemini-2.0-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
+ S.settings=Object.assign({driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
 function save(push=true,keep=false){if(!keep||!S.updatedAt)S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Không lưu được vào trình duyệt (bộ nhớ đầy hoặc bị chặn).")}
  if(push)Sync.push();Dir.push();}
 /* ============ TÀI KHOẢN & ĐỒNG BỘ (Firebase Authentication + Firestore) ============ */
@@ -288,10 +298,10 @@ const Dir={h:null,ok:false,status:"Chưa chọn thư mục",file:"du_lieu_thiet_
 let view="home", W={level:null,grade:null,subject:null,lesson:null}, UP={cands:[],files:[],busy:false,filter:"phys"}, Q={eq:"",showAll:false,stock:"",stockLevel:"",stockKind:""};
 function go(v,reset){view=v;if(reset)W={level:null,grade:null,subject:null,lesson:null};render();window.scrollTo(0,0)}
 const isAd=()=>!Fb.cfg||Fb.isAdmin();
-const ADMIN_VIEWS=["upload","pick","stock","summary","settings","users"];
+const ADMIN_VIEWS=["addeq","upload","pick","stock","summary","settings","users"];
 function renderNav(){
  const ad=isAd(),items=[["home","Trang chủ"]];
- if(ad)items.push(["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]);
+ if(ad)items.push(["addeq","Bổ sung thiết bị"],["upload","Thêm danh mục"],["pick","Chọn đồ dùng theo bài"],["stock","Kho thiết bị"],["summary","Đã chọn"]);
  items.push(["borrow","Mượn thiết bị"],["loans","Nhật ký mượn trả"]);
  if(ad){if(Fb.cfg)items.push(["users","Tài khoản"]);items.push(["settings","Cài đặt"])}
  $("#nav").innerHTML=items.map(([k,l])=>`<button class="${view===k?"on":""}" data-go="${k}">${l}</button>`).join("");
@@ -304,7 +314,7 @@ function needLogin(){if(Fb.cfg&&!Fb.user){toast("Vui lòng đăng nhập hoặc 
 function render(){if(view==="login"&&Fb.user)view="home";if(ADMIN_VIEWS.includes(view)&&!isAd())view="home";renderNav();const a=$("#app");
  if(view==="login"&&Fb.cfg){vLogin(a);return}if(view==="login")view="home";
  if(view==="users"&&!Fb.isAdmin())view="home";
- ({home:vHome,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,borrow:vBorrow,loans:vLoans,settings:vSettings,users:vUsers})[view](a)
+ ({home:vHome,addeq:vAddEq,upload:vUpload,pick:vPick,stock:vStock,summary:vSummary,borrow:vBorrow,loans:vLoans,settings:vSettings,users:vUsers})[view](a)
  if(!Dir.ok&&!(Fb.cfg&&!Fb.user)){const b=document.createElement("div");b.className="card noprint";b.style.cssText="border-color:var(--acc);background:#fff8e6";
   b.innerHTML=Dir.sup?`<div class="row sp"><span><b>Dữ liệu chưa được lưu vào thư mục.</b> ${esc(Dir.status)}</span><button class="btn" data-act="${Dir.h?"dirRegrant":"dirChoose"}">${Dir.h?"Cấp quyền lại":"Chọn thư mục lưu dữ liệu"}</button></div>`:`<b>Trình duyệt này không hỗ trợ lưu vào thư mục.</b> Hãy mở bằng Chrome hoặc Edge. Dữ liệu hiện chỉ lưu trong trình duyệt.`;
   a.prepend(b)}}
@@ -355,7 +365,8 @@ function vHome(a){
  const nEq=S.equipment.length,nSel=Object.values(S.sel).filter(x=>x.ids&&x.ids.length).length;
  a.innerHTML=`<div class="home"><h2>Chào mừng thầy/cô</h2><p class="sub">Chọn một chức năng để bắt đầu.</p>
  <div class="grid g2">
-  ${isAd()?`<div class="tile" data-go="upload"><span class="ico">📥</span>Thêm danh mục thiết bị<small>Tải file Word / Excel bất kỳ định dạng – hệ thống tự lọc thiết bị Vật lý</small></div>
+  ${isAd()?`<div class="tile" data-go="addeq"><span class="ico">🤖</span>Bổ sung thiết bị theo môn<small>Chọn Công nghệ / Vật lý / Hóa học / Sinh học – hệ thống đọc thư mục, AI lọc theo khối, theo bài</small></div>
+  <div class="tile" data-go="upload"><span class="ico">📥</span>Thêm danh mục thiết bị<small>Tải file Word / Excel bất kỳ định dạng – hệ thống tự lọc thiết bị Vật lý</small></div>
   <div class="tile" data-go="pick" data-reset="1"><span class="ico">🧪</span>Chọn đồ dùng dạy học theo bài<small>Cấp → Khối → Môn → Bài → chọn thiết bị đang có</small></div>
   <div class="tile" data-go="stock"><span class="ico">🗄️</span>Kho thiết bị hiện có<small>${nEq} thiết bị trong danh mục</small></div>
   <div class="tile" data-go="summary"><span class="ico">📋</span>Tổng hợp đã chọn<small>${nSel} bài đã có đồ dùng · xuất Excel / in</small></div>`:""}
@@ -375,7 +386,7 @@ async function readFile(f){
  const ext=f.name.split(".").pop().toLowerCase();const buf=await f.arrayBuffer();
  if(ext==="docx")return readDocx(buf);
  if(["xlsx","xls","xlsm","csv","ods","tsv"].includes(ext)){
-  const wb=XLSX.read(buf,{type:"array"});const rows=[];
+  const wb=["csv","tsv"].includes(ext)?XLSX.read(new TextDecoder("utf-8").decode(buf).replace(/^\uFEFF/,""),{type:"string"}):XLSX.read(buf,{type:"array"});const rows=[];
   wb.SheetNames.forEach(n=>{const ws=wb.Sheets[n];XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""}).forEach(r=>rows.push(r.map(c=>c==null?"":String(c).trim())))});
   return rows}
  throw new Error("Chưa hỗ trợ định dạng ."+ext+" (dùng .docx, .xlsx, .xls, .csv)")}
@@ -458,7 +469,7 @@ async function parseAI(rows,fname,defLevel){
  const lines=rows.map(r=>uniqRow(r).join(" | ")).filter(x=>x&&x!=="§TABLE");const res=[];
  for(let i=0;i<lines.length;i+=220){const chunk=lines.slice(i,i+220).join("\n");
   const prompt=`Bạn hỗ trợ quản lý thiết bị dạy học trường THCS&THPT. Dưới đây là các dòng trích từ một file danh mục thiết bị (định dạng bất kỳ, các cột cách nhau bằng " | "). Hãy trích TẤT CẢ dòng là một thiết bị/tranh ảnh/phần mềm cụ thể và trả về JSON mảng, mỗi phần tử: {"name":string,"code":string,"maker":string,"origin":string,"unit":string,"qty":number|null,"level":"THCS"|"THPT"|"","kind":"Thiết bị"|"Tranh ảnh"|"Phần mềm/Video"|"Dùng chung","physics":boolean}. "physics"=true nếu thiết bị dùng cho môn Vật lý (gồm phần Vật lý của KHTN THCS và Vật lý THPT: cơ, nhiệt, âm, quang, điện, từ, Trái Đất–bầu trời, dụng cụ đo, thiết bị dùng chung dùng cho thí nghiệm Vật lý), false nếu của Hóa học, Sinh học, Công nghệ, Toán, các môn khác. Chỉ trả JSON, không giải thích.\n\n${chunk}`;
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.settings.model||"gemini-2.0-flash")}:generateContent?key=${encodeURIComponent(key)}`;
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.settings.model||"gemini-2.5-flash")}:generateContent?key=${encodeURIComponent(key)}`;
   const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0}})});
   if(!r.ok)throw new Error("Gemini trả lỗi "+r.status);
   const j=await r.json();const txt=j.candidates&&j.candidates[0]&&j.candidates[0].content.parts.map(p=>p.text).join("")||"[]";
@@ -514,7 +525,7 @@ function renderReview(){const box=$("#review");if(!box)return;
 /* ============ CHỌN ĐỒ DÙNG THEO BÀI ============ */
 const lessonKey=()=>`${W.level}|${W.grade}|${W.subject}|${W.lesson}`;
 function lessonsOf(){const subj=W.subject,g=W.grade;const base=(LESSONS[subj+"|"+g]||[]).map(([ch,ls])=>[ch,ls.map(l=>({n:l[0],t:l[1],kw:l[2]}))]);
- const cu=(S.customLessons[subj+"|"+g]||[]);if(cu.length)base.push(["Bài thêm thủ công",cu.map(l=>({n:l.n,t:l.t,kw:l.kw||"",custom:1}))]);return base}
+ const grp={};(S.customLessons[subj+"|"+g]||[]).forEach(l=>{const c=l.ch||"Bài thêm thủ công";(grp[c]=grp[c]||[]).push({n:l.n,t:l.t,kw:l.kw||"",custom:1})});Object.entries(grp).forEach(e=>base.push(e));return base}
 function findLesson(n){for(const[,ls]of lessonsOf())for(const l of ls)if(String(l.n)===String(n))return l;return null}
 function vPick(a){
  const crumb=[`<a data-act="wz" data-s="0">Chọn đồ dùng</a>`];
@@ -530,7 +541,7 @@ function vPick(a){
   h+=`<div class="row sp"><div><h2>Chọn bài</h2><p class="sub">Bước 4/5 – ${CURR[W.level].subjects.find(s=>s.id===W.subject).name}, khối ${W.grade} · sách Kết nối tri thức</p></div><div class="row"><input type="search" id="lq" placeholder="Tìm bài…" value="${esc(Q.lesson||"")}"><button class="btn sec sm" data-act="addLesson">+ Thêm bài</button></div></div><div id="lessonList"></div>`;
  } else {
   const l=findLesson(W.lesson);const sel=(S.sel[lessonKey()]||{ids:[],note:""});
-  h+=`<div class="row sp"><div><h2>Bài ${W.lesson}: ${esc(l?l.t:"")}</h2><p class="sub">Bước 5/5 – bấm vào thiết bị để chọn / bỏ chọn. Tự động lưu.</p></div><div class="row"><input type="search" id="eq" placeholder="Tìm thiết bị…" value="${esc(Q.eq)}"><label><input type="checkbox" id="showAll" ${Q.showAll?"checked":""}> Hiện thiết bị cấp khác</label></div></div><div id="eqList"></div>
+  h+=`<div class="row sp"><div><h2>Bài ${W.lesson}: ${esc(l?l.t:"")}</h2><p class="sub">Bước 5/5 – bấm vào thiết bị để chọn / bỏ chọn. Tự động lưu.</p></div><div class="row"><input type="search" id="eq" placeholder="Tìm thiết bị…" value="${esc(Q.eq)}"><label><input type="checkbox" id="showAll" ${Q.showAll?"checked":""}> Hiện thiết bị cấp/môn khác</label></div></div><div id="eqList"></div>
   <div class="card" style="margin-top:14px"><label class="f">Ghi chú cho bài này (số lượng cần, vị trí để…)<textarea id="note" rows="2">${esc(sel.note||"")}</textarea></label></div>
   <div class="row noprint" style="margin-top:12px"><button class="btn" data-act="borrowLesson">Mượn các thiết bị đã chọn cho bài này</button><span class="note">Chuyển sang trang Mượn thiết bị với các thiết bị của bài đã được tích sẵn.</span></div>`}
  a.innerHTML=h;
@@ -545,7 +556,7 @@ function fillLessons(){const q=norm(Q.lesson||"");let h="";
 function scoreEq(e,kws){if(!kws.length)return 0;const n=norm(e.name+" "+(e.group||""));return kws.reduce((s,k)=>s+(n.includes(k)?1:0),0)}
 function fillEq(){const l=findLesson(W.lesson);const kws=(l&&l.kw?l.kw:"").split("|").map(s=>s.trim()).filter(Boolean);
  const sel=new Set((S.sel[lessonKey()]||{ids:[]}).ids);const q=norm(Q.eq);
- let pool=S.equipment.filter(e=>Q.showAll||e.level===W.level);
+ let pool=S.equipment.filter(e=>Q.showAll||(e.level===W.level&&eqSubj(e)===skOf(W.subject)));
  if(q)pool=pool.filter(e=>norm(e.name+" "+e.code+" "+e.maker+" "+(e.group||"")).includes(q));
  const on=pool.filter(e=>sel.has(e.id)),rest=pool.filter(e=>!sel.has(e.id));
  const sug=rest.filter(e=>scoreEq(e,kws)>0).sort((a,b)=>scoreEq(b,kws)-scoreEq(a,kws)),oth=rest.filter(e=>scoreEq(e,kws)===0);
@@ -554,28 +565,29 @@ function fillEq(){const l=findLesson(W.lesson);const kws=(l&&l.kw?l.kw:"").split
  if(on.length)h+=`<div class="sect">Đã chọn (${on.length})</div>`+on.map(card).join("");
  if(sug.length)h+=`<div class="sect">Gợi ý theo nội dung bài (${sug.length})</div>`+sug.map(card).join("");
  if(oth.length)h+=`<div class="sect">Thiết bị khác (${oth.length})</div>`+oth.map(card).join("");
- $("#eqList").innerHTML=h||`<div class="card">Chưa có thiết bị nào${Q.showAll?"":" cho cấp này"}. Hãy dùng mục <b>Thêm danh mục</b> để nạp file.</div>`}
+ $("#eqList").innerHTML=h||`<div class="card">Chưa có thiết bị nào${Q.showAll?"":" cho cấp/môn này"}. Hãy dùng mục <b>Bổ sung thiết bị</b> để nạp danh mục.</div>`}
 
 /* ============ KHO THIẾT BỊ ============ */
 function vStock(a){
- const q=norm(Q.stock);let list=S.equipment.filter(e=>(!Q.stockLevel||e.level===Q.stockLevel)&&(!Q.stockKind||e.kind===Q.stockKind)&&(!q||norm(e.name+" "+e.code+" "+e.maker+" "+e.source).includes(q)));
+ const q=norm(Q.stock);let list=S.equipment.filter(e=>(!Q.stockLevel||e.level===Q.stockLevel)&&(!Q.stockKind||e.kind===Q.stockKind)&&(!Q.stockSubj||eqSubj(e)===Q.stockSubj)&&(!q||norm(e.name+" "+e.code+" "+e.maker+" "+e.source).includes(q)));
  a.innerHTML=`<div class="row sp"><div><h2>Kho thiết bị</h2><p class="sub">${S.equipment.length} thiết bị · đang hiển thị ${list.length}</p></div><button class="btn" data-act="newEq">+ Thêm thủ công</button></div>
  <div class="card"><div class="row" style="margin-bottom:10px"><input type="search" id="sq" placeholder="Tìm…" value="${esc(Q.stock)}"><select id="sl"><option value="">Mọi cấp</option><option ${Q.stockLevel==="THCS"?"selected":""}>THCS</option><option ${Q.stockLevel==="THPT"?"selected":""}>THPT</option></select>
- <select id="sk"><option value="">Mọi loại</option>${["Thiết bị","Dùng chung","Tranh ảnh","Phần mềm/Video"].map(k=>`<option ${Q.stockKind===k?"selected":""}>${k}</option>`).join("")}</select></div>
- <div class="tw"><table><thead><tr><th>#</th><th>Tên</th><th>Ký mã hiệu</th><th>Hãng / Xuất xứ</th><th>ĐVT</th><th>SL</th><th>Cấp</th><th>Loại</th><th>Nguồn</th><th></th></tr></thead><tbody>
- ${list.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.name)}</td><td>${esc(e.code)}</td><td>${esc(e.maker)}${e.origin?" – "+esc(e.origin):""}</td><td>${esc(e.unit)}</td><td>${esc(e.qty)}</td><td>${esc(e.level)}</td><td>${esc(e.kind)}</td><td class="note">${esc(e.source)}</td><td style="white-space:nowrap"><button class="btn sec sm" data-act="editEq" data-id="${e.id}">Sửa</button> <button class="btn bad sm" data-act="delEq" data-id="${e.id}">Xóa</button></td></tr>`).join("")}</tbody></table></div></div>`;
+ <select id="ss"><option value="">Mọi môn</option>${SUBJS.map(r=>`<option value="${r[0]}" ${Q.stockSubj===r[0]?"selected":""}>${r[1]}</option>`).join("")}</select>
+ <select id="sk"><option value="">Mọi loại</option>${KINDS.map(k=>`<option ${Q.stockKind===k?"selected":""}>${k}</option>`).join("")}</select></div>
+ <div class="tw"><table><thead><tr><th>#</th><th>Tên</th><th>Ký mã hiệu</th><th>Hãng / Xuất xứ</th><th>ĐVT</th><th>SL</th><th>Môn</th><th>Cấp</th><th>Loại</th><th>Nguồn</th><th></th></tr></thead><tbody>
+ ${list.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.name)}</td><td>${esc(e.code)}</td><td>${esc(e.maker)}${e.origin?" – "+esc(e.origin):""}</td><td>${esc(e.unit)}</td><td>${esc(e.qty)}</td><td>${esc(subjName(eqSubj(e)))}</td><td>${esc(e.level)}${e.grades&&e.grades.length?`<div class="note">K${e.grades.join(", ")}</div>`:""}</td><td>${esc(e.kind)}</td><td class="note">${esc(e.source)}</td><td style="white-space:nowrap"><button class="btn sec sm" data-act="editEq" data-id="${e.id}">Sửa</button> <button class="btn bad sm" data-act="delEq" data-id="${e.id}">Xóa</button></td></tr>`).join("")}</tbody></table></div></div>`;
  $("#sq").oninput=e=>{Q.stock=e.target.value;const p=e.target.selectionStart;vStock(a);const n=$("#sq");n.focus();n.setSelectionRange(p,p)};
- $("#sl").onchange=e=>{Q.stockLevel=e.target.value;vStock(a)};$("#sk").onchange=e=>{Q.stockKind=e.target.value;vStock(a)}}
+ $("#sl").onchange=e=>{Q.stockLevel=e.target.value;vStock(a)};$("#ss").onchange=e=>{Q.stockSubj=e.target.value;vStock(a)};$("#sk").onchange=e=>{Q.stockKind=e.target.value;vStock(a)}}
 function eqDialog(id){const e=S.equipment.find(x=>x.id===id)||{name:"",code:"",maker:"",origin:"",unit:"",qty:"",level:"THCS",kind:"Thiết bị",source:"Nhập thủ công"};
  const d=$("#dlg");d.innerHTML=`<h3 style="margin-top:0">${id?"Sửa":"Thêm"} thiết bị</h3><form method="dialog" id="ef">
  <label class="f">Tên<input id="f_name" value="${esc(e.name)}" required></label>
  <div class="row"><label class="f" style="flex:1">Ký mã hiệu<input id="f_code" value="${esc(e.code)}"></label><label class="f" style="flex:1">Hãng<input id="f_maker" value="${esc(e.maker)}"></label></div>
  <div class="row"><label class="f" style="flex:1">Xuất xứ<input id="f_origin" value="${esc(e.origin)}"></label><label class="f" style="flex:1">ĐVT<input id="f_unit" value="${esc(e.unit)}"></label><label class="f" style="flex:1">SL<input id="f_qty" value="${esc(e.qty)}"></label></div>
- <div class="row"><label class="f" style="flex:1">Cấp<select id="f_level"><option ${e.level==="THCS"?"selected":""}>THCS</option><option ${e.level==="THPT"?"selected":""}>THPT</option></select></label>
- <label class="f" style="flex:1">Loại<select id="f_kind">${["Thiết bị","Dùng chung","Tranh ảnh","Phần mềm/Video"].map(k=>`<option ${e.kind===k?"selected":""}>${k}</option>`).join("")}</select></label></div>
+ <div class="row"><label class="f" style="flex:1">Môn<select id="f_subj">${SUBJS.map(r=>`<option value="${r[0]}" ${(e.subj||"VL")===r[0]?"selected":""}>${r[1]}</option>`).join("")}</select></label><label class="f" style="flex:1">Cấp<select id="f_level"><option ${e.level==="THCS"?"selected":""}>THCS</option><option ${e.level==="THPT"?"selected":""}>THPT</option></select></label>
+ <label class="f" style="flex:1">Loại<select id="f_kind">${KINDS.map(k=>`<option ${e.kind===k?"selected":""}>${k}</option>`).join("")}</select></label></div>
  <div class="row" style="justify-content:flex-end"><button type="button" class="btn sec" id="cx">Hủy</button><button class="btn" value="ok">Lưu</button></div></form>`;
  d.showModal();$("#cx").onclick=()=>d.close();
- $("#ef").onsubmit=ev=>{ev.preventDefault();const o={name:$("#f_name").value.trim(),code:$("#f_code").value.trim(),maker:$("#f_maker").value.trim(),origin:$("#f_origin").value.trim(),unit:$("#f_unit").value.trim(),qty:$("#f_qty").value.trim(),level:$("#f_level").value,kind:$("#f_kind").value};
+ $("#ef").onsubmit=ev=>{ev.preventDefault();const o={name:$("#f_name").value.trim(),code:$("#f_code").value.trim(),maker:$("#f_maker").value.trim(),origin:$("#f_origin").value.trim(),unit:$("#f_unit").value.trim(),qty:$("#f_qty").value.trim(),level:$("#f_level").value,kind:$("#f_kind").value,subj:$("#f_subj").value};
   if(!o.name)return;if(id)Object.assign(S.equipment.find(x=>x.id===id),o);else S.equipment.push(Object.assign({id:uid(),source:"Nhập thủ công",group:""},o));
   save();d.close();render()}}
 
@@ -585,14 +597,14 @@ function summaryRows(){const rows=[];
   const arr=LESSONS[subj+"|"+grade]||[];let t="";arr.forEach(([,ls])=>ls.forEach(l=>{if(String(l[0])===n)t=l[1]}));
   if(!t){const c=(S.customLessons[subj+"|"+grade]||[]).find(l=>String(l.n)===n);if(c)t=c.t}
   const eqs=v.ids.map(id=>S.equipment.find(e=>e.id===id)).filter(Boolean);
-  rows.push({level,grade:+grade,subj,n,t,eqs,note:v.note||""})});
- rows.sort((a,b)=>a.level.localeCompare(b.level)||a.grade-b.grade||(+a.n)-(+b.n));return rows}
+  rows.push({level,grade:+grade,subj,sub:subLab(level,skOf(subj)),n,t,eqs,note:v.note||""})});
+ rows.sort((a,b)=>a.level.localeCompare(b.level)||a.grade-b.grade||a.sub.localeCompare(b.sub,"vi")||(+a.n)-(+b.n)||String(a.n).localeCompare(String(b.n)));return rows}
 function vSummary(a){const rows=summaryRows();
  a.innerHTML=`<div class="row sp"><div><h2>Đồ dùng dạy học đã chọn theo bài</h2><p class="sub">${rows.length} bài đã có đồ dùng</p></div><div class="row noprint"><button class="btn sec" data-act="exportXlsx" ${rows.length?"":"disabled"}>Xuất Excel</button><button class="btn" onclick="window.print()">In</button></div></div>
- <div class="card"><div class="tw"><table><thead><tr><th>Cấp</th><th>Khối</th><th>Bài</th><th>Đồ dùng dạy học</th><th>Ghi chú</th></tr></thead><tbody>
- ${rows.map(r=>`<tr><td>${r.level}</td><td>${r.grade}</td><td><b>Bài ${r.n}</b>: ${esc(r.t)}</td><td>${r.eqs.map(e=>esc(e.name)+(e.qty!==""?` (${esc(e.qty)} ${esc(e.unit)})`:"")).join("; ")}</td><td>${esc(r.note)}</td></tr>`).join("")||`<tr><td colspan="5">Chưa chọn đồ dùng nào.</td></tr>`}</tbody></table></div></div>`}
+ <div class="card"><div class="tw"><table><thead><tr><th>Cấp</th><th>Khối</th><th>Môn</th><th>Bài</th><th>Đồ dùng dạy học</th><th>Ghi chú</th></tr></thead><tbody>
+ ${rows.map(r=>`<tr><td>${r.level}</td><td>${r.grade}</td><td>${esc(r.sub)}</td><td><b>Bài ${r.n}</b>: ${esc(r.t)}</td><td>${r.eqs.map(e=>esc(e.name)+(e.qty!==""?` (${esc(e.qty)} ${esc(e.unit)})`:"")).join("; ")}</td><td>${esc(r.note)}</td></tr>`).join("")||`<tr><td colspan="6">Chưa chọn đồ dùng nào.</td></tr>`}</tbody></table></div></div>`}
 function exportXlsx(){const rows=summaryRows();const aoa=[["Cấp","Khối","Môn","Bài","Tên bài","Đồ dùng dạy học","Ghi chú"]];
- rows.forEach(r=>aoa.push([r.level,r.grade,r.level==="THCS"?"KHTN (Vật lý)":"Vật lý",r.n,r.t,r.eqs.map(e=>e.name+(e.qty!==""?` (${e.qty} ${e.unit})`:"")).join("; "),r.note]));
+ rows.forEach(r=>aoa.push([r.level,r.grade,r.sub,r.n,r.t,r.eqs.map(e=>e.name+(e.qty!==""?` (${e.qty} ${e.unit})`:"")).join("; "),r.note]));
  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[{wch:7},{wch:7},{wch:16},{wch:6},{wch:44},{wch:90},{wch:30}];
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Đồ dùng theo bài");XLSX.writeFile(wb,"DoDungDayHoc_theo_bai.xlsx")}
 
@@ -608,17 +620,16 @@ const liveLoans=()=>S.loans.filter(l=>!l.del);
 function totalOf(e){const n=parseFloat(String(e.qty).replace(",","."));return isNaN(n)?null:n}
 function outOf(id){return liveLoans().filter(l=>l.eqId===id&&l.status==="out").reduce((t,l)=>t+(+l.qty||0),0)}
 function availOf(e){const t=totalOf(e);return t===null?Infinity:Math.max(0,t-outOf(e.id))}
-let B={ticks:{},q:"",level:"",only:false,name:"",cls:"",pur:"",out:"",due:"",init:false};
+let B={ticks:{},q:"",level:"",subj:"",only:false,name:"",cls:"",pur:"",out:"",due:"",init:false};
 let LQ={t:"",st:"out",from:"",to:"",q:""};
 function weekDates(){const d=new Date();let dow=d.getDay();const add=dow===0?1:1-dow;const m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+add),f=new Date(m.getFullYear(),m.getMonth(),m.getDate()+4);
  const iso=x=>new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10);return{out:iso(m),due:iso(f)}}
 function teacherList(){const set=new Set(S.teachers||[]);liveLoans().forEach(l=>l.borrower&&set.add(l.borrower));if(Fb.prof&&Fb.prof.name)set.add(Fb.prof.name);if(B.name)set.add(B.name);return[...set].sort((x,y)=>x.localeCompare(y,"vi"))}
 function classList(){const set=new Set(S.classes||[]);liveLoans().forEach(l=>(l.cls||"").split(/\s*,\s*/).forEach(c=>c&&set.add(c)));(B.cls||[]).forEach(c=>set.add(c));return[...set].sort((x,y)=>x.localeCompare(y,"vi",{numeric:true}))}
-const BGRADES=[["THCS","KHTN","KHTN",6],["THCS","KHTN","KHTN",7],["THCS","KHTN","KHTN",8],["THCS","KHTN","KHTN",9],["THPT","VL","Vật lý",10],["THPT","VL","Vật lý",11],["THPT","VL","Vật lý",12]];
-function bLessons(g){const x=BGRADES.find(r=>String(r[3])===String(g));if(!x)return[];const base=(LESSONS[x[1]+"|"+g]||[]).map(([ch,ls])=>[ch,ls.map(l=>({n:l[0],t:l[1],kw:l[2]||""}))]);
- const cu=(S.customLessons[x[1]+"|"+g]||[]);if(cu.length)base.push(["Bài thêm thủ công",cu.map(l=>({n:l.n,t:l.t,kw:l.kw||""}))]);return base}
+function bLessons(g,k){if(!g||!k)return[];const sid=sidOf(lvOf(g),k);const base=(LESSONS[sid+"|"+g]||[]).map(([ch,ls])=>[ch,ls.map(l=>({n:l[0],t:l[1],kw:l[2]||""}))]);
+ const grp={};(S.customLessons[sid+"|"+g]||[]).forEach(l=>{const c=l.ch||"Bài thêm thủ công";(grp[c]=grp[c]||[]).push({n:l.n,t:l.t,kw:l.kw||""})});Object.entries(grp).forEach(e=>base.push(e));return base}
 function vBorrow(a){
- if(!B.init){B.init=true;const w=weekDates();B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=w.out;B.due=w.due;B.cond=B.cond||{};B.grade=B.grade||"";B.lesson=B.lesson||"";B.level=B.level||"";B.cls=Array.isArray(B.cls)?B.cls:(B.cls?[B.cls]:[])}
+ if(!B.init){B.init=true;const w=weekDates();B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=w.out;B.due=w.due;B.cond=B.cond||{};B.grade=B.grade||"";B.lesson=B.lesson||"";B.level=B.level||"";B.subj=B.subj||"";B.cls=Array.isArray(B.cls)?B.cls:(B.cls?[B.cls]:[])}
  const tl=teacherList(),cl=classList();
  a.innerHTML=`<div class="row sp"><div><h2>Mượn thiết bị</h2><p class="sub">Chọn giáo viên, lớp, bài dạy; tích thiết bị cần mượn, chọn số lượng và tình trạng rồi bấm “Xác nhận mượn”. Ngày mượn mặc định là thứ Hai, hạn trả là thứ Sáu của tuần.</p></div><button class="btn sec" data-go="loans">Xem nhật ký mượn trả</button></div>
  <div class="card"><div class="row">
@@ -628,8 +639,9 @@ function vBorrow(a){
   <label class="f" style="flex:1;min-width:150px">Hạn trả (thứ Sáu)<input type="date" id="b_due" value="${esc(B.due)}"></label></div>
   <label class="f">Mục đích sử dụng (tự điền khi chọn bài, có thể sửa)<input id="b_pur" value="${esc(B.pur)}" style="width:100%"></label></div>
  <div class="card"><div class="row" style="align-items:center;margin-bottom:8px"><b>1. Cấp học</b>${["THCS","THPT"].map(v=>`<button class="chip ${B.level===v?"on":""}" data-act="bLevel" data-v="${v}">${v==="THCS"?"THCS":"THPT"}</button>`).join("")}</div>
-  ${B.level?`<div class="row" style="align-items:center;margin-bottom:8px"><b>2. Khối</b><button class="chip ${B.grade?"":"on"}" data-act="bGrade" data-v="">Tất cả khối</button>${BGRADES.filter(r=>r[0]===B.level).map(r=>`<button class="chip ${String(B.grade)===String(r[3])?"on":""}" data-act="bGrade" data-v="${r[3]}">Khối ${r[3]}</button>`).join("")}</div>`:""}
-  ${B.level&&B.grade?`<div class="row" style="align-items:center;margin-bottom:8px"><b>3. Bài học</b><select id="b_l" style="flex:1;min-width:240px"><option value="">— Tất cả bài của khối ${B.grade} —</option>${bLessons(B.grade).map(([ch,ls])=>`<optgroup label="${esc(ch)}">${ls.map(l=>`<option value="${esc(l.n)}" ${String(B.lesson)===String(l.n)?"selected":""}>Bài ${esc(l.n)}: ${esc(l.t)}</option>`).join("")}</optgroup>`).join("")}</select></div>`:""}
+  ${B.level?`<div class="row" style="align-items:center;margin-bottom:8px"><b>2. Môn</b><button class="chip ${B.subj?"":"on"}" data-act="bSubj" data-v="">Tất cả môn</button>${SUBJS.map(r=>`<button class="chip ${B.subj===r[0]?"on":""}" data-act="bSubj" data-v="${r[0]}">${r[1]}</button>`).join("")}</div>`:""}
+  ${B.level?`<div class="row" style="align-items:center;margin-bottom:8px"><b>3. Khối</b><button class="chip ${B.grade?"":"on"}" data-act="bGrade" data-v="">Tất cả khối</button>${GRADES_OF[B.level].map(g=>`<button class="chip ${String(B.grade)===String(g)?"on":""}" data-act="bGrade" data-v="${g}">Khối ${g}</button>`).join("")}</div>`:""}
+  ${B.level&&B.grade&&B.subj?`<div class="row" style="align-items:center;margin-bottom:8px"><b>4. Bài học</b><select id="b_l" style="flex:1;min-width:240px"><option value="">— Tất cả bài của khối ${B.grade} —</option>${bLessons(B.grade,B.subj).map(([ch,ls])=>`<optgroup label="${esc(ch)}">${ls.map(l=>`<option value="${esc(l.n)}" ${String(B.lesson)===String(l.n)?"selected":""}>Bài ${esc(l.n)}: ${esc(l.t)}</option>`).join("")}</optgroup>`).join("")}</select></div>`:""}
   <div class="row" style="margin:10px 0"><input type="search" id="b_q" placeholder="Tìm thiết bị…" value="${esc(B.q)}" style="flex:1;min-width:180px">
   <label><input type="checkbox" id="b_only" ${B.only?"checked":""}> Chỉ hiện thiết bị đã tích</label></div>
   <div class="tw"><table><thead><tr><th></th><th>Thiết bị</th><th>Cấp</th><th>Hiện có</th><th>Đang cho mượn</th><th>Còn lại</th><th>Số lượng mượn</th><th>Tình trạng khi mượn</th></tr></thead><tbody id="bList"></tbody></table></div>
@@ -643,15 +655,15 @@ function vBorrow(a){
   const bn=document.createElement("div");bn.className="card";bn.style.cssText="border-color:var(--acc);background:#fff8e6";
   bn.innerHTML=`<div class="row sp"><span><b>Bạn cần đăng nhập để mượn thiết bị.</b> Đăng nhập hoặc đăng ký tài khoản để chọn giáo viên, lớp, thiết bị và xác nhận mượn.</span><span class="row"><button class="btn" data-act="showAuth" data-v="login">Đăng nhập</button><button class="btn sec" data-act="showAuth" data-v="register">Đăng ký</button></span></div>`;
   a.querySelector(".row.sp").after(bn)}}
-function setPurpose(){const x=BGRADES.find(r=>String(r[3])===String(B.grade));if(!x||!B.lesson){B.pur="";return}
- let t="";bLessons(B.grade).forEach(([,ls])=>ls.forEach(l=>{if(String(l.n)===String(B.lesson))t=l.t}));B.pur=`Bài ${B.lesson}: ${t} (${x[2]} ${x[3]})`}
+function setPurpose(){if(!B.grade||!B.lesson||!B.subj){B.pur="";return}
+ let t="";bLessons(B.grade,B.subj).forEach(([,ls])=>ls.forEach(l=>{if(String(l.n)===String(B.lesson))t=l.t}));B.pur=`Bài ${B.lesson}: ${t} (${subLab(lvOf(B.grade),B.subj)} ${B.grade})`}
 function bSum(){const n=Object.keys(B.ticks).length,t=Object.values(B.ticks).reduce((x,y)=>x+y,0);const el=$("#bsum");if(el)el.innerHTML=n?`Đã chọn <b>${n}</b> loại thiết bị · tổng <b>${t}</b> đơn vị`:"Chưa chọn thiết bị nào"}
-function lessonEq(l,g){const x=BGRADES.find(r=>String(r[3])===String(g)),o=S.sel[`${x[0]}|${x[3]}|${x[1]}|${l.n}`],ids=new Set((o&&o.ids)||[]);
+function lessonEq(l,g,k){const lv=lvOf(g),o=S.sel[`${lv}|${g}|${sidOf(lv,k)}|${l.n}`],ids=new Set((o&&o.ids)||[]);
  const kws=(l.kw||"").split("|").map(z=>z.trim()).filter(Boolean);
- const pool=S.equipment.filter(e=>e.level===x[0]&&e.kind!=="Dùng chung");
+ const pool=S.equipment.filter(e=>e.level===lv&&e.kind!=="Dùng chung"&&eqSubj(e)===k);
  return{assigned:pool.filter(e=>ids.has(e.id)),sug:pool.filter(e=>!ids.has(e.id)&&scoreEq(e,kws)>0).sort((a,b)=>scoreEq(b,kws)-scoreEq(a,kws))}}
 function fillBorrow(){const q=norm(B.q);
- const hit=e=>(!q||norm(e.name+" "+e.code+" "+e.maker+" "+(e.group||"")).includes(q))&&(!B.only||B.ticks[e.id]);
+ const hit=e=>(!B.subj||eqSubj(e)===B.subj)&&(!q||norm(e.name+" "+e.code+" "+e.maker+" "+(e.group||"")).includes(q))&&(!B.only||B.ticks[e.id]);
  const qtySel=(e,av)=>{const mx=av===Infinity?30:Math.min(av,30),cur=B.ticks[e.id];return`<select data-act="bQty" data-id="${e.id}">${Array.from({length:mx},(_,i)=>`<option ${cur===i+1?"selected":""}>${i+1}</option>`).join("")}</select>`};
  const row=e=>{const on=!!B.ticks[e.id],av=availOf(e),o=outOf(e.id);
   return`<tr class="${on?"selrow":""}"><td><input type="checkbox" data-act="bTick" data-id="${e.id}" ${on?"checked":""} ${av===0&&!on?"disabled":""}></td>
@@ -667,9 +679,10 @@ function fillBorrow(){const q=norm(B.q);
   let main=[];
   if(!B.grade){main=S.equipment.filter(e=>e.level===B.level&&e.kind!=="Dùng chung").filter(hit);
    h+=sec(`Thiết bị dạy học – ${B.level}`,main.length)+(main.map(row).join("")||none("Không có thiết bị phù hợp."))}
-  else if(!B.lesson){const seen=new Map();bLessons(B.grade).forEach(([,ls])=>ls.forEach(l=>{const r=lessonEq(l,B.grade);r.assigned.concat(r.sug).forEach(e=>seen.set(e.id,e))}));
+  else if(!B.lesson||!B.subj){const seen=new Map();(B.subj?[B.subj]:SUBJS.map(r=>r[0])).forEach(k=>bLessons(B.grade,k).forEach(([,ls])=>ls.forEach(l=>{const r=lessonEq(l,B.grade,k);r.assigned.concat(r.sug).forEach(e=>seen.set(e.id,e))})));
+   S.equipment.forEach(e=>{if(e.level===B.level&&e.kind!=="Dùng chung"&&Array.isArray(e.grades)&&e.grades.includes(+B.grade))seen.set(e.id,e)});
    main=[...seen.values()].filter(hit);h+=sec(`Thiết bị của khối ${B.grade}`,main.length)+(main.map(row).join("")||none(`Khối ${B.grade} chưa có thiết bị.`))}
-  else{let l=null;bLessons(B.grade).forEach(([,ls])=>ls.forEach(z=>{if(String(z.n)===String(B.lesson))l=z}));const r=l?lessonEq(l,B.grade):{assigned:[],sug:[]};
+  else{let l=null;bLessons(B.grade,B.subj).forEach(([,ls])=>ls.forEach(z=>{if(String(z.n)===String(B.lesson))l=z}));const r=l?lessonEq(l,B.grade,B.subj):{assigned:[],sug:[]};
    const as=r.assigned.filter(hit),sg=r.sug.filter(hit);
    if(as.length)h+=sec("Đã gắn cho bài này",as.length)+as.map(row).join("");
    if(sg.length)h+=sec("Gợi ý theo nội dung bài",sg.length)+sg.map(row).join("");
@@ -688,7 +701,7 @@ function bConfirm(){const name=(B.name||"").trim();const ids=Object.keys(B.ticks
   S.loans.push({id:uid(),batch,eqId:id,eqName:e.name,unit:e.unit||"",code:e.code||"",qty:B.ticks[id],borrower:name,uid:Fb.user?Fb.user.uid:"",cls:B.cls.join(", "),purpose:(B.pur||"").trim(),dateOut:B.out,due:B.due||B.out,status:"out",condOut:(B.cond&&B.cond[id])||"Tốt",dateIn:"",cond:"",note:"",upd:now})});
  try{localStorage.setItem("hoathuan_borrower",name)}catch(e){}
  save();toast(`Đã ghi nhận ${ids.length} thiết bị mượn của ${name}`,3500);
- B.ticks={};B.cond={};B.pur="";B.lesson="";B.grade="";B.level="";B.cls=[];LQ={t:"",st:"out",from:"",to:"",q:""};go("loans")}
+ B.ticks={};B.cond={};B.pur="";B.lesson="";B.grade="";B.level="";B.subj="";B.cls=[];LQ={t:"",st:"out",from:"",to:"",q:""};go("loans")}
 
 function loanStatus(l){if(l.status==="returned")return["Đã trả","ok"];return l.due&&l.due<today()?["Quá hạn","bad"]:["Đang mượn","acc"]}
 function loansFiltered(){const q=norm(LQ.q);return liveLoans().filter(l=>(!LQ.t||nk(l.borrower)===LQ.t)&&(LQ.st==="all"||(LQ.st==="out"?l.status==="out":LQ.st==="late"?(l.status==="out"&&l.due<today()):l.status==="returned"))
@@ -756,11 +769,191 @@ function vSettings(a){const s=S.settings;
  <div class="row"><button class="btn" data-act="saveSet">Lưu cài đặt</button><button class="btn sec" data-act="backup">Sao lưu ra file (.json)</button><label class="btn sec" style="margin:0">Khôi phục từ file<input type="file" id="rest" accept=".json" style="display:none"></label><button class="btn bad" data-act="reset">Đặt lại dữ liệu mẫu</button></div>`;
  $("#rest").onchange=async e=>{if(needLogin())return;try{const j=JSON.parse(await e.target.files[0].text());if(!Array.isArray(j.equipment))throw 0;j.settings=S.settings;j.loans=mergeLoans(S.loans,j.loans);S=j;save();toast("Đã khôi phục");render()}catch(x){toast("File sao lưu không hợp lệ")}}}
 
+/* ============ BỔ SUNG THIẾT BỊ THEO MÔN (đọc thư mục + Gemini lọc theo khối, theo bài) ============ */
+const SUBJ_RE={VL:/\bvat ?l[iy]\b|physics/,HH:/\bhoa( hoc)?\b|chemis/,SH:/\bsinh( hoc)?\b|biolog/,CN:/\bcong nghe\b/};
+const KHTN_RE=/\bkhtn\b|khoa hoc tu nhien/;
+/* Nguồn: thư mục danh mục thiết bị trên máy (Google Drive for desktop) – chọn một lần, trình duyệt nhớ lại */
+const Src={h:null,ok:false,status:"Chưa chọn thư mục danh mục thiết bị",sup:!!window.showDirectoryPicker,
+ async get(){const d=await Dir.idb();return new Promise(res=>{const q=d.transaction("kv").objectStore("kv").get("src");q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})},
+ async put(h){const d=await Dir.idb();return new Promise(res=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(h,"src");t.oncomplete=()=>res()})},
+ async init(){if(!this.sup)return;try{const h=await this.get();if(h){this.h=h;if(await h.queryPermission({mode:"read"})==="granted"){this.ok=true;this.status="Đã chọn thư mục “"+h.name+"”"}else this.status="Cần cấp quyền đọc lại cho thư mục “"+h.name+"”"}}catch(e){console.error(e)}},
+ async choose(){try{const h=await showDirectoryPicker({mode:"read",id:"tbsrc"});this.h=h;await this.put(h);this.ok=true;this.status="Đã chọn thư mục “"+h.name+"”";toast("Đã chọn thư mục “"+h.name+"”")}catch(e){if(e.name!=="AbortError")toast("Không chọn được thư mục: "+e.message,4000)}render()},
+ async ensure(){if(!this.h)return false;try{if(await this.h.queryPermission({mode:"read"})==="granted"){this.ok=true;return true}
+   if(await this.h.requestPermission({mode:"read"})==="granted"){this.ok=true;return true}}catch(e){}this.ok=false;return false},
+ async regrant(){await this.ensure();this.status=this.ok?"Đã chọn thư mục “"+this.h.name+"”":"Chưa được cấp quyền";render()}};
+const KINDS_AI={"thiet bi":"Thiết bị","dung chung":"Dùng chung","hoa chat":"Hóa chất","tranh anh":"Tranh ảnh","phan mem/video":"Phần mềm/Video","phan mem":"Phần mềm/Video","video":"Phần mềm/Video"};
+const ADD={src:"drive",subj:"VL",level:"",grade:"",gen:true,busy:false,stop:false,log:[],res:null};
+const addSleep=ms=>new Promise(r=>setTimeout(r,ms));
+const addLogHtml=()=>ADD.log.map(x=>`<div style="${x.c==="bad"?"color:var(--bad)":x.c==="ok"?"color:var(--ok);font-weight:600":""}">${esc(x.m)}</div>`).join("");
+function alog(m,c){ADD.log.push({m,c:c||""});if(ADD.log.length>500)ADD.log.shift();const el=$("#addLog");if(el){el.innerHTML=addLogHtml();el.scrollTop=el.scrollHeight}}
+function addScope(){const gs=ADD.grade?[+ADD.grade]:ADD.level?GRADES_OF[ADD.level].slice():[6,7,8,9,10,11,12];
+ const t=ADD.grade?"khối "+ADD.grade:ADD.level?"cấp "+ADD.level+" (khối "+gs.join(", ")+")":"mọi cấp (khối 6–12)";return{gs,t}}
+function vAddEq(a){
+ const chip=(on,act,v,t)=>`<button class="chip ${on?"on":""}" data-act="${act}" data-v="${v}">${t}</button>`;
+ const gs=ADD.level?GRADES_OF[ADD.level]:[6,7,8,9,10,11,12];const keyOk=!!S.settings.gemini.trim();
+ a.innerHTML=`<h2>Bổ sung thiết bị theo môn</h2><p class="sub">Chọn môn → hệ thống tự vào thư mục danh mục, đọc các file Word/Excel, dùng AI Gemini lọc thiết bị theo khối và theo bài → tự thêm vào kho và vào danh sách thiết bị khi giáo viên mượn trả.</p>
+ <div class="card">
+  <div class="row" style="align-items:center;margin-bottom:10px"><b>1. Môn</b>${SUBJS.map(s=>chip(ADD.subj===s[0],"addSubj",s[0],s[1])).join("")}</div>
+  <div class="row" style="align-items:center;margin-bottom:10px"><b>2. Cấp</b>${chip(!ADD.level,"addLevel","","Tất cả")}${chip(ADD.level==="THCS","addLevel","THCS","THCS")}${chip(ADD.level==="THPT","addLevel","THPT","THPT")}
+   <b style="margin-left:14px">Khối</b>${chip(!ADD.grade,"addGrade","","Tất cả")}${gs.map(g=>chip(String(ADD.grade)===String(g),"addGrade",g,g)).join("")}</div>
+  <div style="margin-bottom:10px"><b>3. Nguồn danh mục thiết bị</b>
+   <div class="row" style="margin:6px 0">${chip(ADD.src==="drive","addSrc","drive","Google Drive (theo link)")}${chip(ADD.src==="local","addSrc","local","Thư mục trên máy")}</div>
+   ${ADD.src==="drive"?`<label class="f">Link hoặc ID thư mục Google Drive<input id="addDrv" value="${esc(S.settings.driveFolder||"")}" style="width:100%"></label>
+    <label class="f">Google API key có bật Drive API (để trống = dùng khóa Firebase của dự án)<input type="password" id="addDk" value="${esc(S.settings.driveKey||"")}" autocomplete="off" style="width:100%"></label>
+    <div class="note">Thư mục cần chia sẻ ở chế độ “Bất kỳ ai có đường liên kết – Người xem”. Web tự mở thư mục con theo tên môn/khối và đọc file Word, Excel, Google Docs, Google Sheets bên trong.</div>`
+   :`Trạng thái: <b>${Src.ok?"Đang dùng thư mục “"+esc(Src.h.name)+"”":esc(Src.status)}</b>
+    <div class="row" style="margin-top:6px"><button class="btn sec sm" data-act="addChoose" ${Src.sup?"":"disabled"}>${Src.h?"Đổi thư mục":"Chọn thư mục"}</button>${Src.h&&!Src.ok?`<button class="btn sm" data-act="addRegrant">Cấp quyền lại</button>`:""}</div>
+    <div class="note">${Src.sup?"Chọn thư mục gốc chứa các file danh mục (VD: thư mục Google Drive trên máy). Web tự tìm file của môn đã chọn.":"Trình duyệt này không hỗ trợ đọc thư mục – dùng Chrome/Edge hoặc chọn file thủ công."}</div>`}</div>
+  <label style="display:block;margin-bottom:10px"><input type="checkbox" id="addGen" ${ADD.gen?"checked":""}> Môn chưa có danh sách bài thì để AI lập danh sách bài theo sách Kết nối tri thức (nên kiểm tra lại)</label>
+  <div class="row" style="align-items:center"><button class="btn" data-act="addRun" ${ADD.busy?"disabled":""}>${ADD.busy?"Đang xử lý…":"Quét thư mục và lọc bằng AI"}</button>${ADD.busy?`<button class="btn bad" data-act="addStop">Dừng</button>`:""}
+   <label class="btn sec" style="margin:0">Hoặc chọn file thủ công<input type="file" id="addFi" multiple accept=".docx,.xlsx,.xls,.xlsm,.csv,.ods" style="display:none"></label></div>
+  ${keyOk?"":`<p class="note" style="color:var(--bad)">Chưa có Gemini API key – vào Cài đặt để nhập trước khi chạy.</p>`}</div>
+ <div class="card" id="addOutCard" style="${ADD.log.length||ADD.res?"":"display:none"}"><b>Tiến trình</b><div id="addLog" class="note" style="max-height:320px;overflow:auto;margin-top:6px">${addLogHtml()}</div><div id="addRes">${addResHtml()}</div></div>`;
+ const g=$("#addGen");if(g)g.onchange=e=>{ADD.gen=e.target.checked};const dv=$("#addDrv");if(dv)dv.oninput=e=>{S.settings.driveFolder=e.target.value.trim();save(false)};const dk=$("#addDk");if(dk)dk.oninput=e=>{S.settings.driveKey=e.target.value.trim();save(false)};
+ const fi=$("#addFi");if(fi)fi.onchange=e=>{const fs=[...e.target.files];if(fs.length)addRun(fs.map(f=>({name:f.name,path:f.name,getFile:async()=>f})))};
+ const lg=$("#addLog");if(lg)lg.scrollTop=lg.scrollHeight}
+function addResHtml(){const r=ADD.res;if(!r)return"";
+ return`<hr style="border:0;border-top:1px solid var(--line);margin:12px 0"><div><b>Kết quả:</b> thêm mới <b>${r.added.length}</b> thiết bị · đã có sẵn <b>${r.merged}</b> (chỉ bổ sung khối/bài) · gắn vào <b>${r.pairs}</b> lượt bài${r.noLesson?` · <b>${r.noLesson}</b> thiết bị chưa xác định được bài (vẫn hiện theo khối)`:""}.
+ <div class="row noprint" style="margin:8px 0"><button class="btn sec sm" data-act="addUndo">Hoàn tác lần thêm này</button><button class="btn sm" data-go="stock">Xem kho thiết bị</button><button class="btn sm" data-go="borrow">Sang trang Mượn thiết bị</button></div></div>
+ ${r.added.length?`<div class="tw"><table><thead><tr><th>Thiết bị mới</th><th>SL</th><th>Cấp</th><th>Khối</th><th>Bài</th></tr></thead><tbody>${r.added.slice(0,150).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.qty)} ${esc(x.unit)}</td><td>${esc(x.level)}</td><td>${esc((x.grades||[]).join(", "))}</td><td>${x.nl||""}</td></tr>`).join("")}</tbody></table></div>${r.added.length>150?`<div class="note">… và ${r.added.length-150} thiết bị khác (xem ở Kho thiết bị).</div>`:""}`:""}`}
+
+async function addWalk(dh,path,depth,out){for await(const[name,h]of dh.entries()){if(name.startsWith("~$")||name.startsWith("."))continue;
+ if(h.kind==="directory"){if(depth<6)await addWalk(h,path+name+"/",depth+1,out)}
+ else if(/\.(docx|xlsx|xls|xlsm|csv)$/i.test(name))out.push({name,path:path+name,getFile:()=>h.getFile()})}}
+const driveId=u=>{u=String(u||"").trim();const m=u.match(/folders\/([\w-]{10,})/)||u.match(/[?&]id=([\w-]{10,})/);return m?m[1]:(/^[\w-]{10,}$/.test(u)?u:"")};
+const DRV="https://www.googleapis.com/drive/v3/files";
+const driveKey=()=>(S.settings.driveKey||"").trim()||(FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey)||"";
+async function driveJson(url){const r=await fetch(url);if(!r.ok){let m="";try{m=(await r.json()).error.message}catch(e){}
+ throw new Error("Drive lỗi "+r.status+(m?": "+m.slice(0,200):"")+(r.status===403||r.status===404?" – kiểm tra thư mục đã chia sẻ “Bất kỳ ai có đường liên kết – Người xem” và đã bật Google Drive API cho khóa API":""))}return r.json()}
+async function driveWalk(id,path,depth,out,key){let tok="";
+ do{const j=await driveJson(`${DRV}?q=${encodeURIComponent(`'${id}' in parents and trashed=false`)}&fields=${encodeURIComponent("nextPageToken,files(id,name,mimeType)")}&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(key)}${tok?"&pageToken="+encodeURIComponent(tok):""}`);
+  for(const f of j.files||[]){
+   if(f.mimeType==="application/vnd.google-apps.folder"){if(depth<6)await driveWalk(f.id,path+f.name+"/",depth+1,out,key);continue}
+   let name=f.name,url=`${DRV}/${f.id}?alt=media&supportsAllDrives=true&key=${encodeURIComponent(key)}`;
+   if(f.mimeType==="application/vnd.google-apps.document"){name+=".docx";url=`${DRV}/${f.id}/export?mimeType=${encodeURIComponent("application/vnd.openxmlformats-officedocument.wordprocessingml.document")}&key=${encodeURIComponent(key)}`}
+   else if(f.mimeType==="application/vnd.google-apps.spreadsheet"){name+=".xlsx";url=`${DRV}/${f.id}/export?mimeType=${encodeURIComponent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}&key=${encodeURIComponent(key)}`}
+   if(!/\.(docx|xlsx|xls|xlsm|csv)$/i.test(name)||name.startsWith("~$"))continue;
+   out.push({name,path:path+name,getFile:async()=>{const r=await fetch(url);if(!r.ok)throw new Error("Tải file lỗi "+r.status);return new File([await r.blob()],name)}})}
+  tok=j.nextPageToken||""}while(tok)}
+function pathHints(p){const n=norm(p);let lv="";if(/\bthpt\b|trung hoc pho thong/.test(n))lv="THPT";else if(/\bthcs\b|trung hoc co so/.test(n))lv="THCS";
+ const gs=[...n.matchAll(/(?:khoi|lop)\s*(\d{1,2})\b/g)].map(m=>+m[1]).filter(g=>g>=6&&g<=12);return{lv,gs}}
+function addPickFiles(all,k){const sc=addScope();let skipS=0,skipL=0;
+ const list=all.filter(f=>{const n=norm(f.path);const direct=SUBJ_RE[k].test(n),generic=!SUBJS.some(s=>SUBJ_RE[s[0]].test(n));
+  if(!(direct||generic)){skipS++;return false}
+  const h=pathHints(f.path);if(h.lv&&ADD.level&&h.lv!==ADD.level||(h.gs.length&&!h.gs.some(g=>sc.gs.includes(g)))){skipL++;return false}return true});
+ return{list,note:[skipS?skipS+" file của môn khác":"",skipL?skipL+" file ngoài phạm vi cấp/khối":""].filter(Boolean).join(", ")}}
+
+/* Gọi Gemini (tự thử lại khi quá tải / hết hạn mức tạm thời) */
+async function gemini(prompt,max){const key=S.settings.gemini.trim();if(!key)throw new Error("Chưa nhập Gemini API key (mục Cài đặt)");
+ const models=[S.settings.model||"gemini-2.5-flash","gemini-2.5-flash","gemini-flash-latest"].filter((m,i,a)=>a.indexOf(m)===i);let lastErr="";
+ for(const m of models){
+  for(let t=0;t<4;t++){
+   if(ADD.stop)throw new Error("Đã dừng");
+   const gc={responseMimeType:"application/json",temperature:0,maxOutputTokens:max||8192};if(/2\.5/.test(m)&&!/lite/.test(m))gc.thinkingConfig={thinkingBudget:0};
+   let r;try{r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})})}
+   catch(e){lastErr="Không kết nối được tới Gemini ("+e.message+")";await addSleep(3000);continue}
+   if(r.ok){const j=await r.json();const c=j.candidates&&j.candidates[0];if(!c||!c.content){lastErr="Gemini không trả nội dung"+(j.promptFeedback&&j.promptFeedback.blockReason?" ("+j.promptFeedback.blockReason+")":"");break}
+    return c.content.parts.map(p=>p.text||"").join("")}
+   let body="";try{body=(await r.json()).error.message||""}catch(e){}
+   lastErr="Gemini lỗi "+r.status+(body?": "+body.slice(0,160):"");
+   if(r.status===404||r.status===400&&/model|thinking/i.test(body))break;   // đổi mô hình khác
+   if(r.status===429||r.status>=500){alog("Gemini đang bận ("+r.status+"), chờ thử lại…");await addSleep(6000*(t+1));continue}
+   throw new Error(lastErr)}}
+ throw new Error(lastErr||"Gemini không phản hồi")}
+function parseJsonLoose(txt){txt=String(txt||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();try{return JSON.parse(txt)}catch(e){}
+ const i=txt.lastIndexOf("},");if(txt[0]==="["&&i>0){try{return JSON.parse(txt.slice(0,i+1)+"]")}catch(e){}}throw new Error("AI trả dữ liệu không đọc được")}
+const bSid=(g,k)=>sidOf(lvOf(g),k||"VL");
+function lessonExists(sid,g,n){n=String(n);const base=LESSONS[sid+"|"+g]||[];for(const[,ls]of base)for(const l of ls)if(String(l[0])===n)return true;return(S.customLessons[sid+"|"+g]||[]).some(l=>String(l.n)===n)}
+function hasLessons(sid,g){return(LESSONS[sid+"|"+g]||[]).length>0||(S.customLessons[sid+"|"+g]||[]).length>0}
+function catalogText(k,gs){const out=[];gs.forEach(g=>{const sid=bSid(g,k),items=[];(LESSONS[sid+"|"+g]||[]).forEach(([,ls])=>ls.forEach(l=>items.push(l[0]+". "+l[1])));
+ (S.customLessons[sid+"|"+g]||[]).forEach(l=>items.push(l.n+". "+l.t));if(items.length)out.push("Khối "+g+": "+items.join("; "))});return out.join("\n")}
+async function genLessons(k,g){const sid=bSid(g,k),lv=lvOf(g);
+ const lab=lv==="THCS"&&k!=="CN"?`Khoa học tự nhiên ${g} – chỉ phần ${subjName(k)}`:`${subjName(k)} ${g}`;
+ const arr=parseJsonLoose(await gemini(`Liệt kê danh mục bài học của sách giáo khoa "${lab}" bộ Kết nối tri thức với cuộc sống (Chương trình GDPT 2018), đúng thứ tự trong sách. Trả về JSON mảng các object {"ch":"tên chương/chủ đề","n":số thứ tự bài (số nguyên theo sách),"t":"tên bài"}. Chỉ liệt kê những bài bạn chắc chắn có trong sách, không bịa thêm. Không giải thích.`));
+ const seen=new Set(),list=[];(Array.isArray(arr)?arr:[]).forEach(x=>{if(!x||!x.t||x.n==null)return;const n=String(x.n).trim();if(!n||seen.has(n))return;seen.add(n);list.push({n,t:String(x.t).trim(),ch:String(x.ch||"").trim(),kw:"",ai:1})});
+ if(list.length)S.customLessons[sid+"|"+g]=list;return list.length}
+function addPrompt(k,sc,path,ctx,chunk,cat){const lab=subjName(k);
+ return `Bạn là trợ lý quản lý thiết bị dạy học cho trường THCS&THPT ở Việt Nam (Chương trình GDPT 2018, sách Kết nối tri thức với cuộc sống).
+Môn cần lọc: ${lab}${k!=="CN"?` (ở THCS là phần ${lab} trong môn Khoa học tự nhiên)`:""}. Phạm vi: ${sc.t}.
+File: "${path}" (tên file/thư mục có thể cho biết cấp, khối, môn).
+${ctx?`Các dòng ngay trước đoạn này (ngữ cảnh):\n${ctx}\n`:""}
+Dưới đây là các dòng trích từ file danh mục thiết bị (các ô cách nhau " | "; dòng ngắn thường là tiêu đề chương/chủ đề/bài/khối/môn – dùng làm ngữ cảnh).
+Nhiệm vụ: chỉ lấy dòng là thiết bị/dụng cụ/mô hình/tranh ảnh/hóa chất/phần mềm/video CỤ THỂ dùng để dạy môn ${lab}. Bỏ qua thiết bị của môn khác, dòng tiêu đề, dòng tổng cộng, ghi chú.
+${cat?`Danh mục bài học (số bài phải lấy đúng theo danh sách này):\n${cat}\n`:""}
+Với mỗi thiết bị trả về một object:
+{"name":tên thiết bị,"code":ký mã hiệu hoặc "","maker":hãng hoặc "","origin":xuất xứ hoặc "","unit":đơn vị tính,"qty":số lượng (số) hoặc null,"level":"THCS"|"THPT"|"","kind":"Thiết bị"|"Dùng chung"|"Hóa chất"|"Tranh ảnh"|"Phần mềm/Video","grades":[các khối dùng thiết bị này, số nguyên 6-12],"lessons":[{"g":khối,"n":số bài trong danh mục}]}
+Quy tắc: "grades" suy ra từ ngữ cảnh (khối/lớp ghi trong file, tên file/thư mục hoặc bài học); không xác định được thì []. "lessons" chỉ gồm những bài chắc chắn dùng thiết bị đó; không chắc thì []. Thiết bị dùng chung cho cả môn thì kind là "Dùng chung".
+Chỉ trả về JSON mảng, không giải thích. Nếu không có thiết bị nào phù hợp trả về [].
+
+DỮ LIỆU:
+${chunk}`}
+function addStart(){if(ADD.busy)return;if(ADD.src==="drive"){if(!driveId(S.settings.driveFolder)){toast("Hãy nhập link thư mục Google Drive",4000);return}addRun(null);return}if(!Src.h){toast("Hãy chọn thư mục danh mục thiết bị trước (hoặc chọn file thủ công)",4500);return}
+ Src.ensure().then(ok=>{if(!ok){toast("Chưa được cấp quyền đọc thư mục",4000);render();return}addRun(null)})}
+async function addRun(files){
+ if(ADD.busy)return;if(needLogin())return;
+ if(!S.settings.gemini.trim()){toast("Chưa nhập Gemini API key – vào Cài đặt để nhập",4500);return}
+ const k=ADD.subj,sc=addScope();ADD.busy=true;ADD.stop=false;ADD.log=[];ADD.res=null;render();
+ try{
+  alog(`Môn: ${subjName(k)} · phạm vi: ${sc.t}`);
+  let list=files;
+  if(!list){const all=[];if(ADD.src==="drive"){const id=driveId(S.settings.driveFolder);if(!id)throw new Error("Chưa có link/ID thư mục Google Drive");alog("Đang quét thư mục Google Drive…");await driveWalk(id,"",0,all,driveKey())}else{alog("Đang quét thư mục “"+Src.h.name+"”…");await addWalk(Src.h,"",0,all)}const p=addPickFiles(all,k);list=p.list;
+   alog(`Tìm thấy ${all.length} file; chọn ${list.length} file phù hợp${p.note?" (bỏ qua "+p.note+")":""}.`)}
+  if(!list.length)throw new Error("Không có file nào phù hợp. Kiểm tra lại thư mục, môn, cấp/khối đã chọn.");
+  // 1. bảo đảm có danh sách bài cho từng khối
+  if(ADD.gen)for(const g of sc.gs){const sid=bSid(g,k);if(hasLessons(sid,g))continue;if(ADD.stop)throw new Error("Đã dừng");
+   alog(`Chưa có danh sách bài ${subjName(k)} khối ${g} – nhờ AI lập…`);
+   try{const n=await genLessons(k,g);alog(n?`  → đã lập ${n} bài (có thể sửa/ bổ sung trong mục Chọn đồ dùng theo bài).`:"  → AI không lập được danh sách bài.");save(false)}catch(e){if(e.message==="Đã dừng")throw e;alog("  → lỗi: "+e.message,"bad")}
+   await addSleep(800)}
+  const cat=catalogText(k,sc.gs);
+  // 2. đọc từng file và nhờ AI lọc
+  const raw=[];let nFiles=0,nLines=0,failStreak=0;
+  for(const f of list){if(ADD.stop)throw new Error("Đã dừng");
+   let rows;try{rows=await readFile(await f.getFile())}catch(e){alog(`✗ ${f.path}: ${e.message}`,"bad");continue}
+   const lines=rows.map(r=>uniqRow(r).join(" | ")).filter(x=>x&&x!=="§TABLE");if(!lines.length){alog(`– ${f.path}: file trống`);continue}
+   nFiles++;nLines+=lines.length;const head=lines.slice(0,3).join("\n");const CH=40;const nCh=Math.ceil(lines.length/CH);let got=0;
+   alog(`Đọc ${f.path}: ${lines.length} dòng → ${nCh} đợt AI`);
+   for(let i=0;i<lines.length;i+=CH){if(ADD.stop)throw new Error("Đã dừng");
+    const ctx=(i?lines.slice(Math.max(0,i-3),i):[]).concat(i?[]:[]).join("\n")||head;
+    try{const arr=parseJsonLoose(await gemini(addPrompt(k,sc,f.path,i?ctx:"",lines.slice(i,i+CH).join("\n"),cat)));failStreak=0;
+     (Array.isArray(arr)?arr:[]).forEach(o=>{if(o&&o.name)raw.push(Object.assign({},o,{_src:f.path}));});got+=Array.isArray(arr)?arr.length:0}
+    catch(e){if(e.message==="Đã dừng")throw e;failStreak++;alog(`  ✗ đợt ${i/CH+1}/${nCh}: ${e.message}`,"bad");if(failStreak>=3)throw new Error("AI lỗi liên tiếp – kiểm tra API key, mô hình, hạn mức rồi chạy lại.")}
+    await addSleep(1200)}
+   alog(`  ✓ ${f.name}: AI chọn ${got} mục`)}
+  // 3. gộp, chuẩn hóa, thêm vào kho và gắn theo bài
+  const eqMap=new Map();
+  raw.forEach(o=>{const name=String(o.name||"").trim();if(name.length<2)return;
+   let gr=[...new Set((Array.isArray(o.grades)?o.grades:[]).map(Number).filter(g=>sc.gs.includes(g)))];
+   let lv=o.level==="THCS"||o.level==="THPT"?o.level:(gr.length?lvOf(gr[0]):(ADD.level||pathHints(o._src).lv||""));
+   if(!lv){const h=pathHints(o._src);lv=h.lv||(sc.gs[0]<=9?"THCS":"THPT")}
+   if(ADD.level&&lv!==ADD.level)return;if(!gr.length&&o.grades&&o.grades.length)return;   // AI nói khối ngoài phạm vi
+   const kind=KINDS_AI[norm(o.kind||"")]||(KINDS.includes(o.kind)?o.kind:"Thiết bị");
+   const e={id:uid(),name,code:String(o.code||"").trim(),maker:String(o.maker||"").trim(),origin:String(o.origin||"").trim(),unit:String(o.unit||"").trim(),qty:o.qty==null||o.qty===""?"":(isNaN(+o.qty)?String(o.qty):+o.qty),group:"",level:lv,kind,source:o._src+" (AI)",subj:k,grades:gr};
+   const key=keyOf(e)+"|"+k;let m=eqMap.get(key);if(!m){m={e,pairs:new Map()};eqMap.set(key,m)}else m.e.grades=[...new Set(m.e.grades.concat(gr))].sort((a,b)=>a-b);
+   (Array.isArray(o.lessons)?o.lessons:[]).forEach(l=>{const g=+l.g,n=l.n;if(!sc.gs.includes(g)||n==null)return;const sid=bSid(g,k);if(!lessonExists(sid,g,n))return;
+    m.pairs.set(`${lvOf(g)}|${g}|${sid}|${n}`,1);if(!m.e.grades.includes(g))m.e.grades.push(g)})});
+  const have=new Map(S.equipment.map(e=>[keyOf(e)+"|"+eqSubj(e),e]));
+  const rec={id:uid(),t:Date.now(),subj:k,newIds:[],pairs:[]};const added=[];let merged=0,nPairs=0,noLesson=0;
+  eqMap.forEach((m,key)=>{let e=have.get(key);
+   if(e){merged++;e.grades=[...new Set((e.grades||[]).concat(m.e.grades))].sort((a,b)=>a-b);if(!e.subj)e.subj=k}
+   else{e=m.e;e.grades.sort((a,b)=>a-b);S.equipment.push(e);rec.newIds.push(e.id);have.set(key,e)}
+   let nl=0;m.pairs.forEach((_,sk)=>{const o=S.sel[sk]=S.sel[sk]||{ids:[],note:""};if(!o.ids.includes(e.id)){o.ids.push(e.id);rec.pairs.push([sk,e.id]);nPairs++}nl++});
+   if(rec.newIds.includes(e.id)){added.push({name:e.name,qty:e.qty,unit:e.unit,level:e.level,grades:e.grades,nl});if(!nl&&e.kind!=="Dùng chung")noLesson++}});
+  S.lastImport=rec;save();
+  ADD.res={added,merged,pairs:nPairs,noLesson};
+  alog(`Hoàn tất: ${nFiles} file, ${nLines} dòng → AI nhận diện ${eqMap.size} thiết bị; thêm mới ${added.length}, đã có sẵn ${merged}, gắn ${nPairs} lượt bài.`,"ok");
+ }catch(e){alog(e.message==="Đã dừng"?"Đã dừng theo yêu cầu.":"LỖI: "+e.message,"bad")}
+ finally{ADD.busy=false;render()}}
+function addUndo(){const r=S.lastImport;if(!r){toast("Không còn lần thêm nào để hoàn tác");return}
+ if(!confirm("Hoàn tác lần thêm gần nhất: xóa "+r.newIds.length+" thiết bị mới và các gắn bài tương ứng?"))return;
+ const ids=new Set(r.newIds);S.equipment=S.equipment.filter(e=>!ids.has(e.id));
+ r.pairs.forEach(([sk,id])=>{const o=S.sel[sk];if(o)o.ids=o.ids.filter(x=>x!==id)});Object.values(S.sel).forEach(o=>o.ids=(o.ids||[]).filter(x=>!ids.has(x)));
+ S.lastImport=null;ADD.res=null;ADD.log=[];save();toast("Đã hoàn tác");render()}
+
 /* ============ SỰ KIỆN ============ */
 document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!ev.target.closest("#b_cls_d"))md.open=false;
  const g=ev.target.closest("[data-go]");if(g){go(g.dataset.go,g.dataset.reset==="1"||g.dataset.go==="pick"&&view!=="pick");return}
  const el=ev.target.closest("[data-act]");if(!el)return;const act=el.dataset.act,v=el.dataset.v,id=el.dataset.id;
- if(["toggleEq","addLesson","upAdd","newEq","editEq","delEq","bConfirm","bClsNew","lRet","lRetAll","lDel","lUndo","reset"].includes(act)&&needLogin())return;
+ if(["toggleEq","addLesson","upAdd","newEq","editEq","delEq","bConfirm","bClsNew","lRet","lRetAll","lDel","lUndo","reset","addRun","addUndo"].includes(act)&&needLogin())return;
  switch(act){
   case"setLevel":W.level=v;render();break;
   case"setGrade":W.grade=+v;render();break;
@@ -774,12 +967,18 @@ document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!e
   case"newEq":eqDialog(null);break;case"editEq":eqDialog(id);break;
   case"delEq":if(confirm("Xóa thiết bị này khỏi danh mục?")){S.equipment=S.equipment.filter(e=>e.id!==id);Object.values(S.sel).forEach(o=>o.ids=(o.ids||[]).filter(x=>x!==id));save();render()}break;
   case"exportXlsx":exportXlsx();break;
-  case"borrowLesson":{const o=S.sel[lessonKey()],l=findLesson(W.lesson);B.ticks={};((o&&o.ids)||[]).forEach(i=>B.ticks[i]=1);B.level=W.level;B.grade=W.grade;B.lesson=String(W.lesson);B.pur=`Bài ${W.lesson}: ${l?l.t:""} (${W.level==="THCS"?"KHTN":"Vật lý"} ${W.grade})`;go("borrow");break}
+  case"borrowLesson":{const o=S.sel[lessonKey()],l=findLesson(W.lesson);B.ticks={};((o&&o.ids)||[]).forEach(i=>B.ticks[i]=1);B.level=W.level;B.grade=W.grade;B.subj=skOf(W.subject);B.lesson=String(W.lesson);B.pur=`Bài ${W.lesson}: ${l?l.t:""} (${subLab(W.level,skOf(W.subject))} ${W.grade})`;go("borrow");break}
   case"bConfirm":bConfirm();break;
   case"bClsNew":{const n=(prompt("Tên lớp (VD: 10A1):")||"").trim();if(n){if(!S.classes.includes(n))S.classes.push(n);if(!B.cls.includes(n))B.cls.push(n);save();render();const d=$("#b_cls_d");if(d)d.open=true}break}
   case"bClear":B.ticks={};B.cond={};render();break;
   case"bLevel":if(B.level!==v){B.level=v;B.grade="";B.lesson="";B.pur=""}render();break;
   case"bGrade":B.grade=v;B.lesson="";B.pur="";render();break;
+  case"bSubj":B.subj=v;B.lesson="";B.pur="";render();break;
+  case"addSubj":ADD.subj=v;render();break;case"addSrc":ADD.src=v;render();break;
+  case"addLevel":ADD.level=v;if(v&&ADD.grade&&lvOf(ADD.grade)!==v)ADD.grade="";render();break;
+  case"addGrade":ADD.grade=v;if(v)ADD.level=lvOf(v);render();break;
+  case"addChoose":Src.choose();break;case"addRegrant":Src.regrant();break;
+  case"addRun":addStart();break;case"addStop":ADD.stop=true;alog("Đang dừng…");break;case"addUndo":addUndo();break;
   case"lRet":retDialog([id]);break;
   case"lRetAll":retDialog(S.loans.filter(l=>!l.del&&l.status==="out"&&nk(l.borrower)===el.dataset.t).map(l=>l.id));break;
   case"lDel":if(confirm("Xóa dòng mượn này khỏi nhật ký?")){const l=S.loans.find(x=>x.id===id);if(l){l.del=1;l.upd=Date.now();save();render()}}break;
@@ -799,7 +998,7 @@ document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!e
   case"copyRules":navigator.clipboard.writeText(FS_RULES).then(()=>toast("Đã sao chép Rules – dán vào Firebase → Firestore → Rules → Publish",4500)).catch(()=>{prompt("Sao chép Rules:",FS_RULES)});break;
 
   case"dirChoose":Dir.choose();break;case"dirRegrant":Dir.regrant();break;
-  case"saveSet":{const s=S.settings;s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.0-flash";s.useAI=$("#gu").checked;save(false);toast("Đã lưu cài đặt");render();break}
+  case"saveSet":{const s=S.settings;s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.5-flash";s.useAI=$("#gu").checked;save(false);toast("Đã lưu cài đặt");render();break}
   case"backup":{const c=Object.assign({},S);delete c.settings;const b=new Blob([JSON.stringify(c,null,1)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sao_luu_thiet_bi_"+new Date().toISOString().slice(0,10)+".json";a.click();break}
   case"reset":if(confirm("Đặt lại toàn bộ về dữ liệu mẫu? Danh mục và lựa chọn đã nhập sẽ mất.")){const st=S.settings;S=defaultState();S.settings=st;save();render()}break;
  }});
@@ -812,7 +1011,7 @@ document.addEventListener("change",ev=>{const el=ev.target.closest("[data-act]")
  if(el.dataset.act==="upEdit"){const c=UP.cands.find(x=>x.id===id);if(c)c[el.dataset.f]=el.value}});
 
 document.addEventListener("submit",ev=>{const f=ev.target.closest("form[data-f]");if(!f)return;ev.preventDefault();authSubmit(f.dataset.f)});
-(async function boot(){load();if(Fb.getCfg()){$("#app").innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">Đang kết nối…</div>';await Fb.init()}render();Dir.init().then(render)})();
+(async function boot(){load();if(Fb.getCfg()){$("#app").innerHTML='<div class="card" style="max-width:420px;margin:40px auto;text-align:center">Đang kết nối…</div>';await Fb.init()}render();Dir.init().then(render);Src.init().then(()=>{if(view==="addeq")render()})})();
 </script>
 </body>
 </html>
