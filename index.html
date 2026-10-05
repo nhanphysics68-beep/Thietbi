@@ -194,9 +194,9 @@ function toast(m,ms=2600){const t=$("#toast");t.textContent=m;t.style.display="b
 /* ============ LƯU TRỮ (adapter: localStorage → Firebase) ============ */
 const KEY="hoathuan_tbdh_v1";
 let S;
-function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},updatedAt:0}}
+function defaultState(){return{equipment:JSON.parse(JSON.stringify(SEED)),sel:{},customLessons:{},loans:[],teachers:[],classes:[],settings:{driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",provider:"gemini",claudeKey:"",claudeModel:"claude-haiku-4-5",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},updatedAt:0}}
 function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultState()}catch(e){S=defaultState()}
- S.settings=Object.assign({driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
+ S.settings=Object.assign({driveFolder:"1kN8J35CVd8fdcpHDVDuS83X9XWF9z1x1",driveKey:"",provider:"gemini",claudeKey:"",claudeModel:"claude-haiku-4-5",gemini:"",model:"gemini-2.5-flash",useAI:false,fb:"",fbOn:false},S.settings||{});S.sel=S.sel||{};S.customLessons=S.customLessons||{};S.loans=S.loans||[];S.teachers=S.teachers||[];S.classes=S.classes||[];}
 function save(push=true,keep=false){if(!keep||!S.updatedAt)S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Không lưu được vào trình duyệt (bộ nhớ đầy hoặc bị chặn).")}
  if(push)Sync.push();Dir.push();}
 /* ============ TÀI KHOẢN & ĐỒNG BỘ (Firebase Authentication + Firestore) ============ */
@@ -756,6 +756,11 @@ function exportLoans(){const list=loansFiltered().slice().sort((a,b)=>a.dateOut.
 function vSettings(a){const s=S.settings;
  a.innerHTML=`<h2>Cài đặt</h2><p class="sub">Dữ liệu hiện lưu trong trình duyệt của máy này. Có thể sao lưu ra file hoặc đồng bộ Firebase.</p>
  <div class="card"><h3 style="margin-top:0">Thư mục lưu dữ liệu</h3><p>Trạng thái: <b>${Dir.ok?"Đang lưu vào thư mục “"+esc(Dir.h.name)+"” (file "+Dir.file+")":esc(Dir.status)}</b></p><button class="btn" data-act="dirChoose" ${Dir.sup?"":"disabled"}>${Dir.h?"Đổi thư mục":"Chọn thư mục"}</button><p class="note">Mọi thay đổi tự ghi vào file ${Dir.file} trong thư mục đã chọn (khóa API không được ghi vào file). Nên chọn thư mục 001.THIẾT BỊ.</p></div>
+ <div class="card"><h3 style="margin-top:0">AI dùng để lọc thiết bị</h3>
+  <label class="f">Nhà cung cấp AI<select id="gp"><option value="gemini" ${s.provider!=="claude"?"selected":""}>Google Gemini</option><option value="claude" ${s.provider==="claude"?"selected":""}>Anthropic Claude</option></select></label>
+  <label class="f">Claude API key (lấy tại console.anthropic.com)<input type="password" id="ck" value="${esc(s.claudeKey||"")}" autocomplete="off"></label>
+  <label class="f">Mô hình Claude<input id="cm" value="${esc(s.claudeModel||"claude-haiku-4-5")}"></label>
+  <p class="note">Claude API tính phí theo lượt dùng, tách riêng với gói Claude trên claude.ai. Key lưu trong trình duyệt của máy này (không đồng bộ, không ghi vào file dữ liệu); nên đặt hạn mức chi tiêu thấp cho key.</p></div>
  <div class="card"><h3 style="margin-top:0">AI Gemini (lọc file danh mục)</h3>
   <label class="f">Gemini API key<input type="password" id="gk" value="${esc(s.gemini)}" autocomplete="off"></label>
   <label class="f">Mô hình<input id="gm" value="${esc(s.model)}"></label>
@@ -790,7 +795,7 @@ function addScope(){const gs=ADD.grade?[+ADD.grade]:ADD.level?GRADES_OF[ADD.leve
  const t=ADD.grade?"khối "+ADD.grade:ADD.level?"cấp "+ADD.level+" (khối "+gs.join(", ")+")":"mọi cấp (khối 6–12)";return{gs,t}}
 function vAddEq(a){
  const chip=(on,act,v,t)=>`<button class="chip ${on?"on":""}" data-act="${act}" data-v="${v}">${t}</button>`;
- const gs=ADD.level?GRADES_OF[ADD.level]:[6,7,8,9,10,11,12];const keyOk=!!S.settings.gemini.trim();
+ const gs=ADD.level?GRADES_OF[ADD.level]:[6,7,8,9,10,11,12];const keyOk=!!((S.settings.provider==="claude"?S.settings.claudeKey:S.settings.gemini)||"").trim();
  a.innerHTML=`<h2>Bổ sung thiết bị theo môn</h2><p class="sub">Chọn môn → hệ thống tự vào thư mục danh mục, đọc các file Word/Excel, dùng AI Gemini lọc thiết bị theo khối và theo bài → tự thêm vào kho và vào danh sách thiết bị khi giáo viên mượn trả.</p>
  <div class="card">
   <div class="row" style="align-items:center;margin-bottom:10px"><b>1. Môn</b>${SUBJS.map(s=>chip(ADD.subj===s[0],"addSubj",s[0],s[1])).join("")}</div>
@@ -807,7 +812,7 @@ function vAddEq(a){
   <label style="display:block;margin-bottom:10px"><input type="checkbox" id="addGen" ${ADD.gen?"checked":""}> Môn chưa có danh sách bài thì để AI lập danh sách bài theo sách Kết nối tri thức (nên kiểm tra lại)</label>
   <div class="row" style="align-items:center"><button class="btn" data-act="addRun" ${ADD.busy?"disabled":""}>${ADD.busy?"Đang xử lý…":"Quét thư mục và lọc bằng AI"}</button>${ADD.busy?`<button class="btn bad" data-act="addStop">Dừng</button>`:""}
    <label class="btn sec" style="margin:0">Hoặc chọn file thủ công<input type="file" id="addFi" multiple accept=".docx,.xlsx,.xls,.xlsm,.csv,.ods" style="display:none"></label></div>
-  ${keyOk?"":`<p class="note" style="color:var(--bad)">Chưa có Gemini API key – vào Cài đặt để nhập trước khi chạy.</p>`}</div>
+  ${keyOk?"":`<p class="note" style="color:var(--bad)">Chưa có API key cho AI đang chọn – vào Cài đặt để nhập trước khi chạy.</p>`}<p class="note">AI đang dùng: <b>${S.settings.provider==="claude"?"Anthropic Claude ("+esc(S.settings.claudeModel||"claude-haiku-4-5")+")":"Google Gemini ("+esc(S.settings.model||"gemini-2.5-flash")+")"}</b> – đổi trong mục Cài đặt.</p></div>
  <div class="card" id="addOutCard" style="${ADD.log.length||ADD.res?"":"display:none"}"><b>Tiến trình</b><div id="addLog" class="note" style="max-height:320px;overflow:auto;margin-top:6px">${addLogHtml()}</div><div id="addRes">${addResHtml()}</div></div>`;
  const g=$("#addGen");if(g)g.onchange=e=>{ADD.gen=e.target.checked};const dv=$("#addDrv");if(dv)dv.oninput=e=>{S.settings.driveFolder=e.target.value.trim();save(false)};const dk=$("#addDk");if(dk)dk.oninput=e=>{S.settings.driveKey=e.target.value.trim();save(false)};
  const fi=$("#addFi");if(fi)fi.onchange=e=>{const fs=[...e.target.files];if(fs.length)addRun(fs.map(f=>({name:f.name,path:f.name,getFile:async()=>f})))};
@@ -843,8 +848,21 @@ function addPickFiles(all,k){const sc=addScope();let skipS=0,skipL=0;
   const h=pathHints(f.path);if(h.lv&&ADD.level&&h.lv!==ADD.level||(h.gs.length&&!h.gs.some(g=>sc.gs.includes(g)))){skipL++;return false}return true});
  return{list,note:[skipS?skipS+" file của môn khác":"",skipL?skipL+" file ngoài phạm vi cấp/khối":""].filter(Boolean).join(", ")}}
 
+/* Gọi Claude (Anthropic API) trực tiếp từ trình duyệt */
+async function claudeCall(prompt,max){const key=(S.settings.claudeKey||"").trim();if(!key)throw new Error("Chưa nhập Claude API key (mục Cài đặt)");
+ const model=(S.settings.claudeModel||"claude-haiku-4-5").trim();let lastErr="";
+ for(let t=0;t<4;t++){if(ADD.stop)throw new Error("Đã dừng");
+  let r;try{r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+   body:JSON.stringify({model,max_tokens:max||8192,temperature:0,system:"Bạn chỉ trả về JSON hợp lệ, không giải thích, không dùng khối mã markdown.",messages:[{role:"user",content:prompt}]})})}
+  catch(e){lastErr="Không kết nối được tới Claude ("+e.message+")";await addSleep(3000);continue}
+  if(r.ok){const j=await r.json();return(j.content||[]).map(c=>c.text||"").join("")}
+  let body="";try{body=(await r.json()).error.message||""}catch(e){}
+  lastErr="Claude lỗi "+r.status+(body?": "+body.slice(0,160):"");
+  if(r.status===429||r.status===529||r.status>=500){const ra=parseFloat(r.headers.get("retry-after"))||0;const w=Math.max(ra*1000,5000*(t+1));alog("Claude đang bận ("+r.status+"), chờ "+Math.round(w/1000)+" giây…");await addSleep(w);continue}
+  throw new Error(lastErr+(r.status===401?" – kiểm tra Claude API key":r.status===404?" – kiểm tra tên mô hình Claude":""))}
+ throw new Error(lastErr||"Claude không phản hồi")}
 /* Gọi Gemini: tự chờ khi vượt tốc độ, tự đổi mô hình khi hết hạn mức ngày */
-async function gemini(prompt,max){const key=S.settings.gemini.trim();if(!key)throw new Error("Chưa nhập Gemini API key (mục Cài đặt)");
+async function gemini(prompt,max){if(S.settings.provider==="claude")return claudeCall(prompt,max);const key=S.settings.gemini.trim();if(!key)throw new Error("Chưa nhập Gemini API key (mục Cài đặt)");
  const models=[S.settings.model||"gemini-2.5-flash","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest"].filter((m,i,a)=>a.indexOf(m)===i);let lastErr="";
  const wait=async ms=>{const end=Date.now()+ms;while(Date.now()<end){if(ADD.stop)throw new Error("Đã dừng");await addSleep(Math.min(500,Math.max(1,end-Date.now())))}};
  for(const m of models){
@@ -900,7 +918,7 @@ async function addEnsure(k,gs){if(!ADD.gen)return;
   await addSleep(ADD.gap)}}
 async function addRun(files){
  if(ADD.busy)return;if(needLogin())return;
- if(!S.settings.gemini.trim()){toast("Chưa nhập Gemini API key – vào Cài đặt để nhập",4500);return}
+ const pv=S.settings.provider==="claude";if(!((pv?S.settings.claudeKey:S.settings.gemini)||"").trim()){toast("Chưa nhập API key của "+(pv?"Claude":"Gemini")+" – vào Cài đặt để nhập",4500);return}ADD.gap=pv?1000:5500;
  const k=ADD.subj,sc=addScope();ADD.busy=true;ADD.stop=false;ADD.log=[];ADD.res=null;render();
  try{
   alog(`Môn: ${subjName(k)} · phạm vi: ${sc.t}`);
@@ -1003,7 +1021,7 @@ document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!e
   case"copyRules":navigator.clipboard.writeText(FS_RULES).then(()=>toast("Đã sao chép Rules – dán vào Firebase → Firestore → Rules → Publish",4500)).catch(()=>{prompt("Sao chép Rules:",FS_RULES)});break;
 
   case"dirChoose":Dir.choose();break;case"dirRegrant":Dir.regrant();break;
-  case"saveSet":{const s=S.settings;s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.5-flash";s.useAI=$("#gu").checked;save(false);toast("Đã lưu cài đặt");render();break}
+  case"saveSet":{const s=S.settings;s.provider=$("#gp").value;s.claudeKey=$("#ck").value.trim();s.claudeModel=$("#cm").value.trim()||"claude-haiku-4-5";s.gemini=$("#gk").value.trim();s.model=$("#gm").value.trim()||"gemini-2.5-flash";s.useAI=$("#gu").checked;save(false);toast("Đã lưu cài đặt");render();break}
   case"backup":{const c=Object.assign({},S);delete c.settings;const b=new Blob([JSON.stringify(c,null,1)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sao_luu_thiet_bi_"+new Date().toISOString().slice(0,10)+".json";a.click();break}
   case"reset":if(confirm("Đặt lại toàn bộ về dữ liệu mẫu? Danh mục và lựa chọn đã nhập sẽ mất.")){const st=S.settings;S=defaultState();S.settings=st;save();render()}break;
  }});
