@@ -782,7 +782,7 @@ const Src={h:null,ok:false,status:"Chưa chọn thư mục danh mục thiết b�
    if(await this.h.requestPermission({mode:"read"})==="granted"){this.ok=true;return true}}catch(e){}this.ok=false;return false},
  async regrant(){await this.ensure();this.status=this.ok?"Đã chọn thư mục “"+this.h.name+"”":"Chưa được cấp quyền";render()}};
 const KINDS_AI={"thiet bi":"Thiết bị","dung chung":"Dùng chung","hoa chat":"Hóa chất","tranh anh":"Tranh ảnh","phan mem/video":"Phần mềm/Video","phan mem":"Phần mềm/Video","video":"Phần mềm/Video"};
-const ADD={src:"drive",subj:"VL",level:"",grade:"",gen:true,busy:false,stop:false,log:[],res:null};
+const ADD={gap:5500,src:"drive",subj:"VL",level:"",grade:"",gen:true,busy:false,stop:false,log:[],res:null};
 const addSleep=ms=>new Promise(r=>setTimeout(r,ms));
 const addLogHtml=()=>ADD.log.map(x=>`<div style="${x.c==="bad"?"color:var(--bad)":x.c==="ok"?"color:var(--ok);font-weight:600":""}">${esc(x.m)}</div>`).join("");
 function alog(m,c){ADD.log.push({m,c:c||""});if(ADD.log.length>500)ADD.log.shift();const el=$("#addLog");if(el){el.innerHTML=addLogHtml();el.scrollTop=el.scrollHeight}}
@@ -843,23 +843,27 @@ function addPickFiles(all,k){const sc=addScope();let skipS=0,skipL=0;
   const h=pathHints(f.path);if(h.lv&&ADD.level&&h.lv!==ADD.level||(h.gs.length&&!h.gs.some(g=>sc.gs.includes(g)))){skipL++;return false}return true});
  return{list,note:[skipS?skipS+" file của môn khác":"",skipL?skipL+" file ngoài phạm vi cấp/khối":""].filter(Boolean).join(", ")}}
 
-/* Gọi Gemini (tự thử lại khi quá tải / hết hạn mức tạm thời) */
+/* Gọi Gemini: tự chờ khi vượt tốc độ, tự đổi mô hình khi hết hạn mức ngày */
 async function gemini(prompt,max){const key=S.settings.gemini.trim();if(!key)throw new Error("Chưa nhập Gemini API key (mục Cài đặt)");
- const models=[S.settings.model||"gemini-2.5-flash","gemini-2.5-flash","gemini-flash-latest"].filter((m,i,a)=>a.indexOf(m)===i);let lastErr="";
+ const models=[S.settings.model||"gemini-2.5-flash","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest"].filter((m,i,a)=>a.indexOf(m)===i);let lastErr="";
+ const wait=async ms=>{const end=Date.now()+ms;while(Date.now()<end){if(ADD.stop)throw new Error("Đã dừng");await addSleep(Math.min(500,Math.max(1,end-Date.now())))}};
  for(const m of models){
-  for(let t=0;t<4;t++){
+  for(let t=0;t<3;t++){
    if(ADD.stop)throw new Error("Đã dừng");
    const gc={responseMimeType:"application/json",temperature:0,maxOutputTokens:max||8192};if(/2\.5/.test(m)&&!/lite/.test(m))gc.thinkingConfig={thinkingBudget:0};
    let r;try{r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})})}
-   catch(e){lastErr="Không kết nối được tới Gemini ("+e.message+")";await addSleep(3000);continue}
+   catch(e){lastErr="Không kết nối được tới Gemini ("+e.message+")";await wait(3000);continue}
    if(r.ok){const j=await r.json();const c=j.candidates&&j.candidates[0];if(!c||!c.content){lastErr="Gemini không trả nội dung"+(j.promptFeedback&&j.promptFeedback.blockReason?" ("+j.promptFeedback.blockReason+")":"");break}
     return c.content.parts.map(p=>p.text||"").join("")}
-   let body="";try{body=(await r.json()).error.message||""}catch(e){}
-   lastErr="Gemini lỗi "+r.status+(body?": "+body.slice(0,160):"");
-   if(r.status===404||r.status===400&&/model|thinking/i.test(body))break;   // đổi mô hình khác
-   if(r.status===429||r.status>=500){alog("Gemini đang bận ("+r.status+"), chờ thử lại…");await addSleep(6000*(t+1));continue}
+   let raw="",body="",delay=0;try{raw=await r.text();const je=JSON.parse(raw).error||{};body=je.message||"";const d=(je.details||[]).find(x=>x.retryDelay);if(d)delay=parseFloat(d.retryDelay)*1000||0}catch(e){}
+   if(!delay){const mm=body.match(/retry in ([\d.]+)s/i);if(mm)delay=parseFloat(mm[1])*1000}
+   lastErr="Gemini lỗi "+r.status+(body?": "+body.slice(0,140):"");
+   if(r.status===404||r.status===400&&/model|thinking/i.test(body))break;                 // đổi mô hình khác
+   if(r.status===429){if(/PerDay/i.test(raw)){alog("Mô hình "+m+" đã hết hạn mức trong ngày – thử mô hình khác…");break}
+    const w=Math.min(70000,Math.max(8000,delay||20000));alog("Gemini giới hạn tốc độ ("+m+"), chờ "+Math.round(w/1000)+" giây rồi thử lại…");await wait(w);continue}
+   if(r.status>=500){alog("Gemini đang bận ("+r.status+"), chờ thử lại…");await wait(5000*(t+1));continue}
    throw new Error(lastErr)}}
- throw new Error(lastErr||"Gemini không phản hồi")}
+ throw new Error(lastErr+(/429/.test(lastErr)?" – đã hết hạn mức Gemini miễn phí; hãy đợi (đầu ngày hôm sau) hoặc dùng key có bật thanh toán":"")||"Gemini không phản hồi")}
 function parseJsonLoose(txt){txt=String(txt||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();try{return JSON.parse(txt)}catch(e){}
  const i=txt.lastIndexOf("},");if(txt[0]==="["&&i>0){try{return JSON.parse(txt.slice(0,i+1)+"]")}catch(e){}}throw new Error("AI trả dữ liệu không đọc được")}
 const bSid=(g,k)=>sidOf(lvOf(g),k||"VL");
@@ -889,6 +893,11 @@ DỮ LIỆU:
 ${chunk}`}
 function addStart(){if(ADD.busy)return;if(ADD.src==="drive"){if(!driveId(S.settings.driveFolder)){toast("Hãy nhập link thư mục Google Drive",4000);return}addRun(null);return}if(!Src.h){toast("Hãy chọn thư mục danh mục thiết bị trước (hoặc chọn file thủ công)",4500);return}
  Src.ensure().then(ok=>{if(!ok){toast("Chưa được cấp quyền đọc thư mục",4000);render();return}addRun(null)})}
+async function addEnsure(k,gs){if(!ADD.gen)return;
+ for(const g of gs){const sid=bSid(g,k);if(hasLessons(sid,g))continue;if(ADD.stop)throw new Error("Đã dừng");
+  alog(`Chưa có danh sách bài ${subjName(k)} khối ${g} – nhờ AI lập…`);
+  try{const n=await genLessons(k,g);alog(n?`  → đã lập ${n} bài (có thể sửa/ bổ sung trong mục Chọn đồ dùng theo bài).`:"  → AI không lập được danh sách bài.");save(false)}catch(e){if(e.message==="Đã dừng")throw e;alog("  → lỗi: "+e.message,"bad")}
+  await addSleep(ADD.gap)}}
 async function addRun(files){
  if(ADD.busy)return;if(needLogin())return;
  if(!S.settings.gemini.trim()){toast("Chưa nhập Gemini API key – vào Cài đặt để nhập",4500);return}
@@ -899,26 +908,22 @@ async function addRun(files){
   if(!list){const all=[];if(ADD.src==="drive"){const id=driveId(S.settings.driveFolder);if(!id)throw new Error("Chưa có link/ID thư mục Google Drive");alog("Đang quét thư mục Google Drive…");await driveWalk(id,"",0,all,driveKey())}else{alog("Đang quét thư mục “"+Src.h.name+"”…");await addWalk(Src.h,"",0,all)}const p=addPickFiles(all,k);list=p.list;
    alog(`Tìm thấy ${all.length} file; chọn ${list.length} file phù hợp${p.note?" (bỏ qua "+p.note+")":""}.`)}
   if(!list.length)throw new Error("Không có file nào phù hợp. Kiểm tra lại thư mục, môn, cấp/khối đã chọn.");
-  // 1. bảo đảm có danh sách bài cho từng khối
-  if(ADD.gen)for(const g of sc.gs){const sid=bSid(g,k);if(hasLessons(sid,g))continue;if(ADD.stop)throw new Error("Đã dừng");
-   alog(`Chưa có danh sách bài ${subjName(k)} khối ${g} – nhờ AI lập…`);
-   try{const n=await genLessons(k,g);alog(n?`  → đã lập ${n} bài (có thể sửa/ bổ sung trong mục Chọn đồ dùng theo bài).`:"  → AI không lập được danh sách bài.");save(false)}catch(e){if(e.message==="Đã dừng")throw e;alog("  → lỗi: "+e.message,"bad")}
-   await addSleep(800)}
-  const cat=catalogText(k,sc.gs);
   // 2. đọc từng file và nhờ AI lọc
   const raw=[];let nFiles=0,nLines=0,failStreak=0;
   for(const f of list){if(ADD.stop)throw new Error("Đã dừng");
    let rows;try{rows=await readFile(await f.getFile())}catch(e){alog(`✗ ${f.path}: ${e.message}`,"bad");continue}
    const lines=rows.map(r=>uniqRow(r).join(" | ")).filter(x=>x&&x!=="§TABLE");if(!lines.length){alog(`– ${f.path}: file trống`);continue}
-   nFiles++;nLines+=lines.length;const head=lines.slice(0,3).join("\n");const CH=40;const nCh=Math.ceil(lines.length/CH);let got=0;
+   const fh=pathHints(f.path);let fg=sc.gs.filter(g=>fh.gs.length?fh.gs.includes(g):(fh.lv?lvOf(g)===fh.lv:true));if(!fg.length)fg=sc.gs;
+   await addEnsure(k,fg);const cat=catalogText(k,fg);
+   nFiles++;nLines+=lines.length;const head=lines.slice(0,3).join("\n");const CH=50;let bad=0;const nCh=Math.ceil(lines.length/CH);let got=0;
    alog(`Đọc ${f.path}: ${lines.length} dòng → ${nCh} đợt AI`);
    for(let i=0;i<lines.length;i+=CH){if(ADD.stop)throw new Error("Đã dừng");
     const ctx=(i?lines.slice(Math.max(0,i-3),i):[]).concat(i?[]:[]).join("\n")||head;
     try{const arr=parseJsonLoose(await gemini(addPrompt(k,sc,f.path,i?ctx:"",lines.slice(i,i+CH).join("\n"),cat)));failStreak=0;
      (Array.isArray(arr)?arr:[]).forEach(o=>{if(o&&o.name)raw.push(Object.assign({},o,{_src:f.path}));});got+=Array.isArray(arr)?arr.length:0}
-    catch(e){if(e.message==="Đã dừng")throw e;failStreak++;alog(`  ✗ đợt ${i/CH+1}/${nCh}: ${e.message}`,"bad");if(failStreak>=3)throw new Error("AI lỗi liên tiếp – kiểm tra API key, mô hình, hạn mức rồi chạy lại.")}
-    await addSleep(1200)}
-   alog(`  ✓ ${f.name}: AI chọn ${got} mục`)}
+    catch(e){if(e.message==="Đã dừng")throw e;failStreak++;bad++;alog(`  ✗ đợt ${i/CH+1}/${nCh}: ${e.message}`,"bad");if(failStreak>=3)throw new Error("AI lỗi liên tiếp – kiểm tra API key, mô hình, hạn mức rồi chạy lại.")}
+    await addSleep(ADD.gap)}
+   alog(bad?`  ! ${f.name}: AI chọn ${got} mục, ${bad}/${nCh} đợt bị lỗi`:`  ✓ ${f.name}: AI chọn ${got} mục`,bad?"bad":"")}
   // 3. gộp, chuẩn hóa, thêm vào kho và gắn theo bài
   const eqMap=new Map();
   raw.forEach(o=>{const name=String(o.name||"").trim();if(name.length<2)return;
