@@ -62,6 +62,7 @@ tr.selrow td{background:#eef6e9}
 .msel{position:relative}.msel summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff;min-height:40px;font-weight:400;color:var(--ink)}.msel summary::-webkit-details-marker{display:none}.msel summary::after{content:"▾";float:right;color:var(--mut)}
 .mbox{position:absolute;z-index:20;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:8px 10px;max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px}.mbox label{display:flex;gap:8px;align-items:center;margin:0;font-weight:400}
 .chip{border:1px solid var(--pri);background:#fff;color:var(--pri);border-radius:999px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:14px}.chip.on{background:var(--pri);color:#fff}
+.wkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:10px}.wkit{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;display:flex;flex-direction:column;gap:5px}.wkit.on{border-color:var(--pri);background:var(--soft)}.wkb{display:inline-block;background:var(--soft);color:var(--pri);border-radius:999px;padding:2px 10px;font-weight:700;font-size:12px}.wkit.on .wkb{background:#fff}.wkd{font-size:13px;color:var(--mut)}.wkd summary{cursor:pointer}
 @media print{header,nav,.authbar,.noprint{display:none!important}body{background:#fff}.card{border:0}}
 @media(max-width:640px){.authbar{margin-left:0;width:100%}}
 </style>
@@ -620,7 +621,7 @@ const liveLoans=()=>S.loans.filter(l=>!l.del);
 function totalOf(e){const n=parseFloat(String(e.qty).replace(",","."));return isNaN(n)?null:n}
 function outOf(id){return liveLoans().filter(l=>l.eqId===id&&l.status==="out").reduce((t,l)=>t+(+l.qty||0),0)}
 function availOf(e){const t=totalOf(e);return t===null?Infinity:Math.max(0,t-outOf(e.id))}
-let B={ticks:{},q:"",level:"",subj:"",only:false,name:"",cls:"",pur:"",out:"",due:"",init:false};
+let B={ticks:{},q:"",level:"",subj:"",only:false,name:"",cls:"",pur:"",out:"",due:"",init:false,wk:0,pp:null};
 let LQ={t:"",st:"all",from:"",to:"",q:""};
 function weekDates(){const d=new Date();let dow=d.getDay();const add=dow===0?1:1-dow;const m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+add),f=new Date(m.getFullYear(),m.getMonth(),m.getDate()+4);
  const iso=x=>new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10);return{out:iso(m),due:iso(f)}}
@@ -628,10 +629,147 @@ function teacherList(){const set=new Set(S.teachers||[]);liveLoans().forEach(l=>
 function classList(){const set=new Set(S.classes||[]);liveLoans().forEach(l=>(l.cls||"").split(/\s*,\s*/).forEach(c=>c&&set.add(c)));(B.cls||[]).forEach(c=>set.add(c));return[...set].sort((x,y)=>x.localeCompare(y,"vi",{numeric:true}))}
 function bLessons(g,k){if(!g||!k)return[];const sid=sidOf(lvOf(g),k);const base=(LESSONS[sid+"|"+g]||[]).map(([ch,ls])=>[ch,ls.map(l=>({n:l[0],t:l[1],kw:l[2]||""}))]);
  const grp={};(S.customLessons[sid+"|"+g]||[]).forEach(l=>{const c=l.ch||"Bài thêm thủ công";(grp[c]=grp[c]||[]).push({n:l.n,t:l.t,kw:l.kw||""})});Object.entries(grp).forEach(e=>base.push(e));return base}
+/* ============ CHỌN TUẦN HỌC (theo Phụ lục III – Kế hoạch giáo dục của giáo viên, năm học 2026–2027) ============ */
+/* Mỗi dòng: [khối, môn, loại ("" = bài học · "cd" = chuyên đề · "kt" = kiểm tra/ôn tập), số bài, tên bài, [các tuần dạy], tiết PPCT, thiết bị dạy học theo PPCT ("" = chưa có thiết bị chuyên dụng), địa điểm]
+   Nguồn: KHTN 6 (Vật lí), KHTN 9 (Vật lí), Vật lí 10 và Chuyên đề Vật lí 10. Muốn đổi/bổ sung bài: sửa trực tiếp mảng PPCT bên dưới. */
+const PPCT=[
+[10,"VL","",1,"Làm quen với Vật lí học",[1],"1,2","","Phòng học lớp"],
+[10,"VL","",2,"Các quy tắc an toàn trong phòng thí nghiệm Vật lí",[2],"3","","Phòng học lớp"],
+[10,"VL","",3,"Thực hành tính sai số trong phép đo. Ghi kết quả đo.",[2],"4","Bộ thu nhận số liệu; Bộ thiết bị đo kĩ thuật số tích hợp","Phòng học lớp"],
+[10,"VL","",4,"Độ dịch chuyển và quãng đường đi được",[3],"5,6","","Phòng học lớp"],
+[10,"VL","",5,"Tốc độ và vận tốc",[4],"7,8","","Phòng học lớp"],
+[10,"VL","",6,"Thực hành: đo tốc độ của vật chuyển động",[5],"9","Bộ thu nhận số liệu; Bộ thiết bị đo kĩ thuật số tích hợp; Dây nối","Phòng học lớp; Sân chơi, bãi tập (đối với hoạt động đo đạc ngoài trời)"],
+[10,"VL","",7,"Đồ thị độ dịch chuyển – thời gian",[5,6],"10,11","","Phòng học lớp"],
+[10,"VL","",8,"Chuyển động thẳng biến đổi. Gia tốc",[6,7],"12,13","","Phòng học lớp"],
+[10,"VL","",9,"Chuyển động thẳng biến đổi đều",[7,8],"14,15,16","","Phòng học lớp"],
+[10,"VL","",10,"Sự rơi tự do",[9],"17","","Phòng học lớp"],
+[10,"VL","",11,"Thực hành: đo gia tốc rơi tự do",[9],"18","Thiết bị đo vận tốc và gia tốc của vật rơi tự do; Giá thí nghiệm; Hộp quả treo; Bộ thu nhận số liệu","Phòng học lớp; Sân chơi, bãi tập (đối với hoạt động đo đạc ngoài trời)"],
+[10,"VL","",12,"Chuyển động ném",[10],"19","","Phòng học lớp"],
+[10,"VL","kt","","Kiểm tra giữa học kì",[10],"20","","Phòng học lớp"],
+[10,"VL","",13,"Tổng hợp và phân tích lực. Cân bằng lực",[11],"21","","Phòng học lớp"],
+[10,"VL","",14,"Định luật I Newton",[11],"22","","Phòng học lớp"],
+[10,"VL","",15,"Định luật II Newton",[12],"23,24","","Phòng học lớp"],
+[10,"VL","",16,"Định luật III Newton",[13],"25","","Phòng học lớp"],
+[10,"VL","",17,"Trọng lực và lực căng",[13],"26","","Phòng học lớp"],
+[10,"VL","",18,"Lực ma sát",[14],"27,28","","Phòng học lớp"],
+[10,"VL","",19,"Lực cản và lực nâng",[15],"29","","Phòng học lớp"],
+[10,"VL","",20,"Ví dụ giải các bài toán về động lực học",[15],"30","","Phòng học lớp"],
+[10,"VL","",21,"Momen lực. Cân bằng của vật rắn",[16],"31,32","","Phòng học lớp"],
+[10,"VL","",22,"Thực hành: Tổng hợp lực",[17],"33,34","Thiết bị tổng hợp hai lực đồng quy và song song; Bộ thiết bị đo kĩ thuật số tích hợp","Phòng học lớp; Sân chơi, bãi tập (đối với hoạt động đo đạc ngoài trời)"],
+[10,"VL","kt","","Ôn tập cuối HKI",[18],"35","","Phòng học lớp"],
+[10,"VL","kt","","Kiểm tra học kì I",[18],"36","","Phòng học lớp"],
+[10,"VL","",23,"Năng lượng. Công cơ học",[19],"37,38","","Phòng học lớp"],
+[10,"VL","",24,"Công suất",[20],"39,40","","Phòng học lớp"],
+[10,"VL","",25,"Động năng. Thế năng",[21],"41,42","","Phòng học lớp"],
+[10,"VL","",26,"Cơ năng. Định luật bảo toàn cơ năng",[22],"43,44","","Phòng học lớp"],
+[10,"VL","",27,"Hiệu suất",[23],"45,46","","Phòng học lớp"],
+[10,"VL","kt","","Ôn tập và kiểm tra định kì",[24],"47,48","","Phòng học lớp"],
+[10,"VL","",28,"Động lượng",[25],"49,50","","Phòng học lớp"],
+[10,"VL","",29,"Định luật Bảo toàn động lượng",[26],"51,52","","Phòng học lớp"],
+[10,"VL","",30,"Thực hành: Xác định động lượng của vật trước và sau va chạm",[27],"53,54","Bộ thiết bị đo kĩ thuật số tích hợp; Bộ thu nhận số liệu","Phòng học lớp; Sân chơi, bãi tập (đối với hoạt động đo đạc ngoài trời)"],
+[10,"VL","kt","","Ôn tập và kiểm tra định kì",[28],"55,56","","Phòng học lớp"],
+[10,"VL","",31,"Động học của chuyển động tròn đều",[29],"57,58","","Phòng học lớp"],
+[10,"VL","",32,"Lực hướng tâm và Gia tốc hướng tâm",[30],"59,60","","Phòng học lớp"],
+[10,"VL","kt","","Ôn tập",[31],"61,62","","Phòng học lớp"],
+[10,"VL","",33,"Biến dạng của vật rắn",[32],"63,64","Giá thí nghiệm; Hộp quả treo; Lò xo; Thiết bị chứng minh định luật Hooke; Video biến dạng và đặc tính của lò xo","Phòng học lớp"],
+[10,"VL","",34,"Khối lượng riêng. Áp suất chất lỏng",[33],"65,66","","Phòng học lớp"],
+[10,"VL","kt","","Ôn tập và kiểm tra định kì",[34],"67,68","","Phòng học lớp"],
+[10,"VL","kt","","Ôn tập và kiểm tra học kì II",[35],"69,70","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.1 – Bài 1","Sơ lược về sự phát triển của Vật lí học",[1,2],"2 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.1 – Bài 2","Giới thiệu các lĩnh vực nghiên cứu trong Vật lí học",[3,4,5],"3 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.1 – Bài 3","Giới thiệu các ứng dụng của Vật lí trong một số ngành nghề",[6,7,8,9],"4 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.2 – Bài 4","Xác định phương hướng trên bầu trời",[10,11,12],"3 tiết","Bản đồ sao hoặc Phần mềm mô phỏng 3D","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.2 – Bài 5","Chuyển động nhìn thấy của một số thiên thể trên nền trời sao",[13,14,15,16],"4 tiết","Phần mềm 3D mô phỏng hệ Mặt Trời; Phần mềm 3D mô phỏng Trái Đất, Mặt Trời, Mặt Trăng","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.2 – Bài 6","Một số hiện tượng thiên văn (Nhật thực, nguyệt thực, thủy triều)",[17,18,19],"3 tiết","Phần mềm 3D mô phỏng nhật, nguyệt thực, thủy triều","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.3 – Bài 7","Sự cần thiết bảo vệ môi trường",[20,21,22],"3 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.3 – Bài 8","Tác động của việc sử dụng năng lượng ở Việt Nam",[23,24,25,26],"4 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.3 – Bài 9","Sơ lược về các chất gây ô nhiễm môi trường",[27,28,29,30],"4 tiết","","Phòng học lớp"],
+[10,"VL","cd","Chuyên đề 10.3 – Bài 10","Năng lượng tái tạo và một số công nghệ thu năng lượng tái tạo",[31,32,33,34],"4 tiết","","Phòng học lớp"],
+[9,"VL","",2,"Động năng. Thế năng",[1,2,3],"1,2,3","Dụng cụ: Một máng trượt, 1 quả bóng bi a, 1 viên đất nặn khoảng 100g, 1 lực kế có giới hạn đo 5N.","Tại lớp"],
+[9,"VL","",3,"Cơ năng",[4,5],"4,5","D.cụ: Bóng nhựa; con lắc đơn; giá TNo có treo sợi dây ko dãn.; Tr.hình: 3.1 => 4 (SGK/18 => 20)","Tại lớp"],
+[9,"VL","",4,"Công và công suất",[6,7,8],"6,7,8","Dụng cụ: Lực kế, vật nặng, mặt phẳng nghiêng","Tại lớp"],
+[9,"VL","",16,"Vòng năng lượng trên trái đất. Năng lượng hóa thạch",[9,10],"9,10","Tranh Vòng năng lượng trên Trái Đất","Trực tuyến"],
+[9,"VL","",17,"Một số dạng năng lượng tái tạo",[12,13],"12,13","Tr.hình: 17.1 => 5 (SGK/80 => 84)","Lớp học"],
+[9,"VL","",5,"Khúc xạ ánh sáng",[14,15,16,17],"14,15,16,17","Bộ dụng cụ thí nghiệm khúc xạ ánh sang gồm: Giấy kẻ ô li loại thông dụng. Cốc nhựa trong suốt hình trụ, thành mỏng, đường kính tối thiểu 80 mm, cao tối thiểu 100 mm, được dán giấy tối màu 2/3 thân cốc, có khe sáng 1 mm. Thước chia độ, compa hoặc tấm nhựa có in vòng tròn chia độ.; Phần mềm 3D mô phỏng sự khúc xạ ánh sáng","Tại lớp"],
+[9,"VL","",6,"Phản xạ toàn phần",[19,20],"20,21,22","Phần mềm 3D mô phỏng sự phản xạ; Bộ dụng cụ thí nghiệm khúc xạ, phản xạ toàn phần gồm: Nguồn sáng laser (TBDC); Lăng kính tam giác đều bằng thủy tinh hữu cơ dày tối thiểu 15 mm, cạnh dài tối thiểu 80 mm và có đế gắn nam châm; Lăng kính phản xạ toàn phần, tam giác vuông cân bằng thủy tinh hữu cơ, dày tối thiểu 15 mm, cạnh dài tối thiểu 80 mm và có đế gắn nam châm; Thấu kính hội tụ thủy tinh hữu cơ dày tối thiểu 15 mm, chiều cao thiểu 80 mm, có đế gắn nam châm; Thấu kính phân kì thủy tinh hữu cơ dày tối thiểu 15 mm, chiều cao tối thiểu 80 mm, có đế gắn nam châm; Bản bán trụ bằng thủy tinh hữu cơ, dày tối thiểu 15mm, đường kính tối thiểu 80 mm và có đế gắn nam châm; Bản hai mặt song song bằng thủy tinh hữu cơ, dày tối thiểu 15mm, kích thước khoảng (130x30) mm, có đế gắn nam châm.","Tại lớp"],
+[9,"VL","",7,"Lăng kính",[20,21],"23,24,25","Phần mềm 3D mô phỏng sự tán sắc; Bộ dụng cụ thí nghiệm phân tích ánh sáng trắng bằng lăng kính gồm: Bảng thép và bộ giá thí nghiệm; Đèn tạo ánh sáng trắng (TBDC); Hai lăng kính tam giác đều bằng thủy tinh hữu cơ dày tối thiểu 15 mm, cạnh dài tối thiểu 80 mm, có đế nam châm; Màn chắn có khe chắn hẹp và màn quan sát bằng vật liệu đảm bảo độ bền cơ học, kích thước phù hợp, có đế nam châm.","Tại lớp"],
+[9,"VL","",8,"Thấu kính",[22,23],"26,27,28,29","D.cụ: nguồn sáng; thấu kính hội tụ, phân kỳ; đèn chiếu sáng; vật sáng bằng kính mờ hình chữ F; màn chắn; giá quang học; nguồn điện và dây nối.; Tr.hình: 8.1 => 12 (SGK/40 => 45)","Tại lớp"],
+[9,"VL","",9,"Thực hành đo tiêu cự của thấu kính hội tụ",[24],"30","Bộ dụng cụ thí nghiệm đo tiêu cự thấu kính gồm: Nguồn sáng, thấu kính hội tụ, thấu kính phân kì, giá quang học (TBDC); Màn chắn sáng bằng nhựa cứng màu đen kích thước tối thiểu (80x100) mm, có lỗ tròn mang hình chữ F cao khoảng 25 mm; Màn ảnh bằng nhựa trắng mờ, kích thước tối thiểu (80x100) mm.","Phòng Lý"],
+[9,"VL","",10,"Kính lúp. Bài tập thấu kính",[24,25],"31,32","Dụng cụ thực hành kính lúp gồm: Kính lúp (TBDC).","Tại lớp"],
+[9,"VL","",11,"Điện trở. Định luật Ohm",[26],"33,34,35","Bộ dụng cụ thí nghiệm tác dụng của điện trở gồm: Biến trở, bộ thu nhận số liệu và cảm biến dòng điện (TBDC). Pin có giá lắp pin loại AA, có đầu nối ở giữa; công tắc; bóng đèn; bảng lắp mạch điện.; Bộ dụng cụ thí nghiệm định luật Ohm gồm: Nguồn, dây dẫn, điện trở, ampe kế, đồng hồ đo điện đa năng (TBDC), hoặc cảm biến dòng điện (TBDC), bảng lắp mạch điện.","Tại lớp"],
+[9,"VL","",12,"Đoạn mạch nối tiếp, song song",[27,28,29],"37,38,39,40","D.cụ: nguồn điện 1 chiều 12V; 3 điện trở R1 = 6Ω - R2 = 10Ω - R3 = 16Ω; ampe kế có giới hạn đo 3A và có độ chia nhỏ nhất là 0,01A; công tắc, các dây nối.; Tr.hình: 12.1 => 4 (SGK/60 => 62)","Tại lớp"],
+[9,"VL","",13,"Năng lượng của dòng điện và công suất điện",[29,30],"41,42,43","Máy chiếu; Tr.hình: 13.1 => 2 (SGK/65 => 66)","Tại lớp"],
+[9,"VL","",14,"Cảm ứng điện từ. Nguyên tắc tạo ra dòng điện xoay chiều",[31,32],"44,45,46,47","Phần mềm 3D mô phỏng từ trường Trái Đất.; Phần mềm 3D từ phổ, đường sức từ của nam châm; Bộ dụng cụ thí nghiệm cảm ứng điện từ gồm: Nam châm, cuộn dây, đèn led hoặc cảm biến điện thế (TBDC).","Lớp học"],
+[9,"VL","",15,"Tác dụng của dòng điện xoay chiều",[33,34],"48,49,50","Bộ thí nghiệm về dòng điện xoay chiều gồm: Máy phát AC thể hiện được cấu trúc gồm nam châm vĩnh cửu và cuộn dây, điện áp ra (3-5) V, (1-1,5) W, có bóng đèn, tay quay máy phát và đế gắn máy.","tiết 42, 43 trực tuyến"],
+[9,"VL","kt","","Kiểm tra giữa HKI (1 tiết)",[11],"11","",""],
+[9,"VL","kt","","Ôn tập, kiểm tra cuối HKI",[18],"18","",""],
+[9,"VL","kt","","Kiểm tra giữa HKII (1 tiết)",[27],"36","",""],
+[9,"VL","kt","","Kiểm tra, đánh giá cuối học kì II",[35],"51,52","","Lớp học"],
+[6,"VL","",5,"Đo chiều dài",[1,2,3],"1,2,3","Thước thẳng, thước cuộn, thước kẹp, thước dây","Lớp học"],
+[6,"VL","",6,"Đo khối lượng",[4,5,6],"4,5,6","Một số loại cân thông dụng: cân đồng hồ, cân Rô – bec – van , …","Lớp học"],
+[6,"VL","",7,"Đo thời gian",[7,8],"7,8","Các loại đồng hồ : Đồng hồ điện tử, đồng hồ cát, đồng hồ bấm giây","Lớp học"],
+[6,"VL","",8,"Đo nhiệt độ",[9,10],"9,10","Tranh ảnh.; Các loại nhiệt kế (Nhiệt kế điện tử, nhiệt kế màu, nhiệt kế y tế, nhiệt kế phòng thí nghiệm,...), giá đỡ, cốc chịu nhiệt.","Lớp học"],
+[6,"VL","",40,"Lực là gì?",[11,12,13],"11,12,13","Tranh ảnh; Giá sắt, vợt, quả bóng bàn, Lò xo xoắn, dây cao su,...","Lớp học"],
+[6,"VL","",41,"Biểu diễn lực",[14,15,16],"14,15,16","Tranh ảnh; Một số loại lực kế, quả nặng, nam châm, khối gỗ","Lớp học"],
+[6,"VL","",42,"Biến dạng của lò xo",[19,20],"19,20,21","Giá đỡ thí nghiệm, lò xo xoắn, các quả nặng có cùng khối lượng, thước có ĐCNN là 1mm, giá đỡ quả nặng","Lớp học"],
+[6,"VL","",43,"Trọng lượng, lực hấp dẫn",[20,21],"22,23","Lực kế lò xo, quả nặng có khối lượng 50g, 100g, 200g.","Lớp học"],
+[6,"VL","",44,"Lực ma sát",[21,22],"24,25","Tranh ảnh về tác dụng thúc đẩy chuyển động và tác dụng có hại của lực ma sát; Ổ bi, lò xo, vật kéo, khối gỗ, quả nặng","Lớp học"],
+[6,"VL","",45,"Lực cản của nước",[22,23],"26,27","Tranh ảnh; Hộp thủy tinh hoặc hộp nhựa trong suốt dạng hình hộp chữ nhật, 1 lực kế lò xo có GHĐ 5N, 1 xe lăn, 1 tấm cản hình chữ nhật, 1 đường ray cho xe lăn chạy, 1 ròng rọc cố định, 1 phễu rót nước, 1 đoạn dây mảnh, 1 van xả nước","Dạy trực tuyến trên LMS (tiết 25,26)"],
+[6,"VL","",46,"Năng lượng và sự truyền năng lượng",[23,24],"28,29","Tranh ảnh; Thước thẳng có ĐCNN là mm, thanh kim loại hình trụ, 1 quả kim loại, 1 lò xo, chong chóng giấy, xe con đồ chơi giống nhau, ống hút.","Lớp học"],
+[6,"VL","",47,"Một số dạng năng lượng",[24,25],"30,31","Tranh ảnh; 2 con lắc gồm 2 quả cầu giống nhau, giá treo cố định, thước mét, tấm bìa","Lớp học"],
+[6,"VL","",48,"Sự chuyển hóa năng lượng",[25,26],"32,33","1 quả bóng teniss (hoặc bóng cao su), thước dây (hoặc thước cuộn), 1 sợi dây dài hơn 1m; Đèn pin, máy xấy tóc, thí nghiệm về sự bảo toàn năng lượng.","Lớp học"],
+[6,"VL","",49,"Năng lượng hao phí",[26,27],"34,35","Tranh ảnh","Lớp học"],
+[6,"VL","",50,"Năng lượng tái tạo",[28],"37,38","Tranh ảnh","Lớp học"],
+[6,"VL","",51,"Tiết kiệm năng lượng",[29],"39,40","Tranh ảnh; Một số sản phẩm tái chế từ giấy, nhựa,…","Lớp học"],
+[6,"VL","",52,"Chuyển động nhìn thấy của Mặt Trời, Thiên Thể",[30],"41,42","Tranh ảnh","Lớp học"],
+[6,"VL","",53,"Mặt Trăng",[31,32],"43,44,45","Tranh ảnh","Lớp học"],
+[6,"VL","",54,"Hệ Mặt Trời",[32,33],"46,47","Tranh ảnh; Đinh ghim, giấy nến, hộp các-tông, băng dính","Lớp học"],
+[6,"VL","",55,"Ngân Hà",[33,34],"48,49,50","Tranh ảnh","Lớp học Dạy trực tuyến trên LMS (tiết 48,49)"],
+[6,"VL","kt","","Ôn tập + Kiểm tra cuối HKI (2 tiết)",[17,18],"17,18","",""],
+[6,"VL","kt","","Kiểm tra giữa học kì II (1 tiết)",[27],"36","",""],
+[6,"VL","kt","","Ôn tập + Kiểm tra học kì II",[35],"51,52","","Lớp học"]
+];
+const PP_WEEKS=35,PP_HK1=18,PP_W1_DEF="2026-09-07";
+/* Tuần 1 bắt đầu từ thứ Hai nào: mặc định PP_W1_DEF, mỗi máy có thể chỉnh ngay trong thẻ “Chọn tuần học” (lưu ở trình duyệt). */
+function ppW1(){try{const v=localStorage.getItem("hoathuan_week1");if(/^\d{4}-\d{2}-\d{2}$/.test(v||""))return v}catch(e){}return PP_W1_DEF}
+function ppAddDays(iso,n){const a=iso.split("-").map(Number);return new Date(Date.UTC(a[0],a[1]-1,a[2]+n)).toISOString().slice(0,10)}
+function ppWeekRange(w){const o=ppAddDays(ppW1(),(w-1)*7);return{out:o,due:ppAddDays(o,4)}}
+function ppCurWeek(){const n=Math.floor((Date.parse(today())-Date.parse(ppW1()))/(7*864e5))+1;return Math.min(PP_WEEKS,Math.max(1,n))}
+const ppShort=iso=>iso.slice(8)+"/"+iso.slice(5,7);
+const ppLabel=p=>p[2]==="cd"?"Chuyên đề Vật lí "+p[0]:(p[0]<=9?"KHTN "+p[0]+" – Vật lí":"Vật lí "+p[0]);
+const ppTitle=p=>(p[2]==="kt"?"":(p[2]==="cd"?p[3]+": ":"Bài "+p[3]+": "))+p[4];
+function ppSetWeek(w){B.wk=Math.min(PP_WEEKS,Math.max(1,+w||1));const r=ppWeekRange(B.wk);B.out=r.out;B.due=r.due;B.pp=null;render()}
+/* Thiết bị trong danh mục khớp với cột “Thiết bị dạy học” của PPCT (so khớp theo tên) */
+function ppMatch(p){if(!p||p[2]==="kt"||!p[7])return[];
+ const cl=t=>norm(t).replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim(),lv=lvOf(p[0]),pt=" "+cl(p[7])+" ";
+ return S.equipment.filter(e=>{if(e.level!==lv||eqSubj(e)!==p[1])return false;
+  const ne=cl(String(e.name||"").replace(/\(.*?\)/g,""));if(ne.length<5)return false;
+  if(pt.includes(" "+ne+" "))return true;
+  const SW=" bo dung cu thi nghiem thiet bi va cua de cho co voi loai mot cac theo hoac trong tren ve ",tk=[...new Set(ne.split(" ").filter(x=>x.length>1&&!SW.includes(" "+x+" ")))];
+  return tk.length>=2&&tk.every(x=>pt.includes(" "+x+" "))})}
+function ppCard(){const w=B.wk,r=ppWeekRange(w);
+ const list=PPCT.map((p,i)=>[p,i]).filter(([p])=>p[5].includes(w)).sort((a,b)=>(a[0][0]*10+(a[0][2]==="cd"?1:0))-(b[0][0]*10+(b[0][2]==="cd"?1:0))||a[1]-b[1]);
+ const opts=Array.from({length:PP_WEEKS},(_,k)=>{const q=ppWeekRange(k+1);return`<option value="${k+1}" ${k+1===w?"selected":""}>Tuần ${k+1} · ${ppShort(q.out)}–${ppShort(q.due)} · ${k+1<=PP_HK1?"HK I":"HK II"}</option>`}).join("");
+ const eqHtml=p=>{if(p[2]==="kt")return`<div class="note">Kiểm tra / ôn tập – không cần mượn thiết bị.</div>`;
+  if(!p[7])return`<div class="note">Chưa có thiết bị chuyên dụng (GV tự chuẩn bị SGK, hình vẽ, tranh ảnh minh hoạ).</div>`;
+  const t=p[7];return t.length>150?`<details class="wkd"><summary><b>Thiết bị theo PPCT:</b> ${esc(t.slice(0,150))}…</summary>${esc(t)}</details>`:`<div class="wkd"><b>Thiết bị theo PPCT:</b> ${esc(t)}</div>`};
+ const items=list.map(([p,i])=>{const on=B.pp===i,nm=ppMatch(p).length;
+  return`<div class="wkit ${on?"on":""}"><div><span class="wkb">${esc(ppLabel(p))}</span></div><b>${esc(ppTitle(p))}</b>
+  <div class="note">${p[2]==="cd"?esc(p[6]):"Tiết PPCT "+esc(p[6])}${p[5].length>1?" · dạy tuần "+p[5].join(", "):""}${p[8]?" · "+esc(p[8]):""}</div>${eqHtml(p)}
+  ${p[2]==="kt"?"":`<div><button class="btn ${on?"":"sec"} sm" data-act="wkPick" data-i="${i}">${on?"✓ Đang chọn":"Chọn bài này"}</button>${nm?` <span class="note">${nm} thiết bị khớp danh mục</span>`:""}</div>`}</div>`}).join("");
+ return`<div class="card"><div class="row sp" style="align-items:center"><b>📅 Chọn tuần học</b><span class="note">Theo Phụ lục III – KHTN 6, KHTN 9, Vật lí 10 (2026–2027)</span></div>
+  <div class="row" style="align-items:center;margin-top:8px"><button class="btn sec sm" data-act="wkPrev" ${w<=1?"disabled":""}>◀ Tuần trước</button>
+   <select id="b_wk" style="min-width:250px">${opts}</select>
+   <button class="btn sec sm" data-act="wkNext" ${w>=PP_WEEKS?"disabled":""}>Tuần sau ▶</button><button class="btn sec sm" data-act="wkNow">Tuần hiện tại</button>
+   <label class="note">Tuần 1 bắt đầu thứ Hai <input type="date" id="b_wk1" value="${esc(ppW1())}"></label></div>
+  <p class="note" style="margin:8px 0 0">Tuần ${w} (${fd(r.out)} – ${fd(r.due)}) có ${list.length} nội dung. Bấm “Chọn bài này” để tự điền cấp học, môn, khối, bài và ngày mượn/hạn trả; đồ dùng khớp với PPCT hiện ngay ở bảng bên dưới để tích chọn.</p>
+  <div class="wkgrid">${items||`<div class="note">Tuần này không có tiết nào trong ba phụ lục.</div>`}</div></div>`}
+
 function vBorrow(a){
- if(!B.init){B.init=true;const w=weekDates();B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=w.out;B.due=w.due;B.cond=B.cond||{};B.grade=B.grade||"";B.lesson=B.lesson||"";B.level=B.level||"";B.subj=B.subj||"";B.cls=Array.isArray(B.cls)?B.cls:(B.cls?[B.cls]:[])}
+ if(!B.init){B.init=true;const w=weekDates();B.name=B.name||(Fb.prof&&Fb.prof.name)||(()=>{try{return localStorage.getItem("hoathuan_borrower")||""}catch(e){return""}})();B.out=w.out;B.due=w.due;B.wk=ppCurWeek();B.pp=null;B.cond=B.cond||{};B.grade=B.grade||"";B.lesson=B.lesson||"";B.level=B.level||"";B.subj=B.subj||"";B.cls=Array.isArray(B.cls)?B.cls:(B.cls?[B.cls]:[])}
  const tl=teacherList(),cl=classList();
- a.innerHTML=`<div class="row sp"><div><h2>Mượn thiết bị</h2><p class="sub">Chọn giáo viên, lớp, bài dạy; tích thiết bị cần mượn, chọn số lượng và tình trạng rồi bấm “Xác nhận mượn”. Ngày mượn mặc định là thứ Hai, hạn trả là thứ Sáu của tuần.</p></div><button class="btn sec" data-go="loans">Xem nhật ký mượn trả</button></div>
+ a.innerHTML=`<div class="row sp"><div><h2>Mượn thiết bị</h2><p class="sub">Chọn giáo viên, lớp, bài dạy; tích thiết bị cần mượn, chọn số lượng và tình trạng rồi bấm “Xác nhận mượn”. Ngày mượn mặc định là thứ Hai, hạn trả là thứ Sáu của tuần. Có thể chọn “tuần học” để hiện sẵn các bài dạy trong tuần.</p></div><button class="btn sec" data-go="loans">Xem nhật ký mượn trả</button></div>
+ ${ppCard()}
  <div class="card"><div class="row">
   <label class="f" style="flex:2;min-width:220px">Giáo viên mượn<select id="b_name" style="width:100%"><option value="">— Chọn giáo viên —</option>${tl.map(n=>`<option ${B.name===n?"selected":""}>${esc(n)}</option>`).join("")}<option value="__new">➕ Thêm giáo viên mới…</option></select></label>
   <label class="f" style="flex:1;min-width:150px">Lớp (chọn được nhiều lớp)<details id="b_cls_d" class="msel"><summary>${B.cls.length?esc(B.cls.join(", ")):"— Chọn lớp —"}</summary><div class="mbox">${cl.map(n=>`<label><input type="checkbox" data-act="bCls" value="${esc(n)}" ${B.cls.includes(n)?"checked":""}> ${esc(n)}</label>`).join("")||`<span class="note">Chưa có lớp nào – bấm thêm lớp mới.</span>`}<button type="button" class="btn sec sm" data-act="bClsNew">➕ Thêm lớp mới…</button></div></details></label>
@@ -648,7 +786,9 @@ function vBorrow(a){
   <div class="row sp" style="margin-top:12px"><span id="bsum" class="note"></span><div class="row"><button class="btn sec" data-act="bClear">Bỏ chọn hết</button><button class="btn" data-act="bConfirm">Xác nhận mượn</button></div></div></div>`;
  $("#b_name").onchange=e=>{if(e.target.value==="__new"&&needLogin())return;if(e.target.value==="__new"){const n=(prompt("Họ và tên giáo viên:")||"").trim();if(n){if(!S.teachers.includes(n))S.teachers.push(n);B.name=n;save()}render()}else B.name=e.target.value};
  $("#b_out").onchange=e=>{B.out=e.target.value};$("#b_due").onchange=e=>{B.due=e.target.value};$("#b_pur").oninput=e=>{B.pur=e.target.value};
- const bl=$("#b_l");if(bl)bl.onchange=e=>{B.lesson=e.target.value;setPurpose();render()};
+ const bl=$("#b_l");if(bl)bl.onchange=e=>{B.lesson=e.target.value;B.pp=null;setPurpose();render()};
+ const bw=$("#b_wk");if(bw)bw.onchange=e=>ppSetWeek(e.target.value);
+ const b1=$("#b_wk1");if(b1)b1.onchange=e=>{try{if(e.target.value)localStorage.setItem("hoathuan_week1",e.target.value);else localStorage.removeItem("hoathuan_week1")}catch(x){}ppSetWeek(B.wk)};
  $("#b_q").oninput=e=>{B.q=e.target.value;fillBorrow()};$("#b_only").onchange=e=>{B.only=e.target.checked;fillBorrow()};
  fillBorrow();
  if(Fb.cfg&&!Fb.user){a.querySelectorAll(".card").forEach(c=>{c.inert=true;c.classList.add("locked")});
@@ -675,18 +815,20 @@ function fillBorrow(){const q=norm(B.q);
  let h="";
  if(!B.level){h=none("Hãy chọn cấp học (THCS hoặc THPT) để hiển thị danh mục thiết bị.")}
  else{
-  const common=S.equipment.filter(e=>e.level===B.level&&e.kind==="Dùng chung").filter(hit);
+  const ppP=(B.pp!=null&&PPCT[B.pp]&&String(PPCT[B.pp][0])===String(B.grade))?PPCT[B.pp]:null,ppE=ppP?ppMatch(ppP).filter(hit):[],ppI=new Set(ppE.map(e=>e.id)),nz=e=>!ppI.has(e.id);
+  if(ppE.length)h+=`<tr><td colspan="8" class="sect" style="background:#fff4d6;font-weight:700;color:var(--pri)">Theo phụ lục PPCT – Tuần ${B.wk}: ${esc(ppTitle(ppP))} (${ppE.length})<button type="button" class="btn sm noprint" data-act="bTickPP" style="float:right">Tích tất cả</button></td></tr>`+ppE.map(row).join("");
+  const common=S.equipment.filter(e=>e.level===B.level&&e.kind==="Dùng chung").filter(hit).filter(nz);
   let main=[];
-  if(!B.grade){main=S.equipment.filter(e=>e.level===B.level&&e.kind!=="Dùng chung").filter(hit);
+  if(!B.grade){main=S.equipment.filter(e=>e.level===B.level&&e.kind!=="Dùng chung").filter(hit).filter(nz);
    h+=sec(`Thiết bị dạy học – ${B.level}`,main.length)+(main.map(row).join("")||none("Không có thiết bị phù hợp."))}
   else if(!B.lesson||!B.subj){const seen=new Map();(B.subj?[B.subj]:SUBJS.map(r=>r[0])).forEach(k=>bLessons(B.grade,k).forEach(([,ls])=>ls.forEach(l=>{const r=lessonEq(l,B.grade,k);r.assigned.concat(r.sug).forEach(e=>seen.set(e.id,e))})));
    S.equipment.forEach(e=>{if(e.level===B.level&&e.kind!=="Dùng chung"&&Array.isArray(e.grades)&&e.grades.includes(+B.grade))seen.set(e.id,e)});
-   main=[...seen.values()].filter(hit);h+=sec(`Thiết bị của khối ${B.grade}`,main.length)+(main.map(row).join("")||none(`Khối ${B.grade} chưa có thiết bị.`))}
+   main=[...seen.values()].filter(hit).filter(nz);h+=sec(`Thiết bị của khối ${B.grade}`,main.length)+(main.map(row).join("")||none(`Khối ${B.grade} chưa có thiết bị.`))}
   else{let l=null;bLessons(B.grade,B.subj).forEach(([,ls])=>ls.forEach(z=>{if(String(z.n)===String(B.lesson))l=z}));const r=l?lessonEq(l,B.grade,B.subj):{assigned:[],sug:[]};
-   const as=r.assigned.filter(hit),sg=r.sug.filter(hit);
+   const as=r.assigned.filter(hit).filter(nz),sg=r.sug.filter(hit).filter(nz);
    if(as.length)h+=sec("Đã gắn cho bài này",as.length)+as.map(row).join("");
    if(sg.length)h+=sec("Gợi ý theo nội dung bài",sg.length)+sg.map(row).join("");
-   if(!as.length&&!sg.length)h+=none(r.assigned.length+r.sug.length?"Không có thiết bị phù hợp với bộ lọc.":"Bài học chưa có thiết bị.")}
+   if(!as.length&&!sg.length&&!ppE.length)h+=none(r.assigned.length+r.sug.length?"Không có thiết bị phù hợp với bộ lọc.":"Bài học chưa có thiết bị.")}
   if(common.length)h+=sec("Đồ dùng chung",common.length)+common.map(row).join("")}
  $("#bList").innerHTML=h;bSum()}
 function bConfirm(){const name=(B.name||"").trim();const ids=Object.keys(B.ticks);
@@ -701,7 +843,7 @@ function bConfirm(){const name=(B.name||"").trim();const ids=Object.keys(B.ticks
   S.loans.push({id:uid(),batch,eqId:id,eqName:e.name,unit:e.unit||"",code:e.code||"",qty:B.ticks[id],borrower:name,uid:Fb.user?Fb.user.uid:"",cls:B.cls.join(", "),purpose:(B.pur||"").trim(),dateOut:B.out,due:B.due||B.out,status:"out",condOut:(B.cond&&B.cond[id])||"Tốt",dateIn:"",cond:"",note:"",upd:now})});
  try{localStorage.setItem("hoathuan_borrower",name)}catch(e){}
  save();toast(`Đã ghi nhận ${ids.length} thiết bị mượn của ${name}`,3500);
- B.ticks={};B.cond={};B.pur="";B.lesson="";B.grade="";B.level="";B.subj="";B.cls=[];LQ={t:"",st:"all",from:"",to:"",q:""};go("loans")}
+ B.ticks={};B.cond={};B.pur="";B.lesson="";B.grade="";B.level="";B.subj="";B.cls=[];B.pp=null;LQ={t:"",st:"all",from:"",to:"",q:""};go("loans")}
 
 function loanStatus(l){if(l.status==="returned")return["Đã trả","ok"];return l.due&&l.due<today()?["Quá hạn","bad"]:["Đang mượn","acc"]}
 function loansFiltered(){const q=norm(LQ.q);return liveLoans().filter(l=>(!LQ.t||nk(l.borrower)===LQ.t)&&(LQ.st==="all"||(LQ.st==="out"?l.status==="out":LQ.st==="late"?(l.status==="out"&&l.due<today()):l.status==="returned"))
@@ -967,13 +1109,21 @@ document.addEventListener("click",ev=>{const md=$("#b_cls_d");if(md&&md.open&&!e
   case"newEq":eqDialog(null);break;case"editEq":eqDialog(id);break;
   case"delEq":if(confirm("Xóa thiết bị này khỏi danh mục?")){S.equipment=S.equipment.filter(e=>e.id!==id);Object.values(S.sel).forEach(o=>o.ids=(o.ids||[]).filter(x=>x!==id));save();render()}break;
   case"exportXlsx":exportXlsx();break;
-  case"borrowLesson":{const o=S.sel[lessonKey()],l=findLesson(W.lesson);B.ticks={};((o&&o.ids)||[]).forEach(i=>B.ticks[i]=1);B.level=W.level;B.grade=W.grade;B.subj=skOf(W.subject);B.lesson=String(W.lesson);B.pur=`Bài ${W.lesson}: ${l?l.t:""} (${subLab(W.level,skOf(W.subject))} ${W.grade})`;go("borrow");break}
+  case"borrowLesson":{const o=S.sel[lessonKey()],l=findLesson(W.lesson);B.ticks={};((o&&o.ids)||[]).forEach(i=>B.ticks[i]=1);B.level=W.level;B.grade=W.grade;B.subj=skOf(W.subject);B.pp=null;B.lesson=String(W.lesson);B.pur=`Bài ${W.lesson}: ${l?l.t:""} (${subLab(W.level,skOf(W.subject))} ${W.grade})`;go("borrow");break}
   case"bConfirm":bConfirm();break;
   case"bClsNew":{const n=(prompt("Tên lớp (VD: 10A1):")||"").trim();if(n){if(!S.classes.includes(n))S.classes.push(n);if(!B.cls.includes(n))B.cls.push(n);save();render();const d=$("#b_cls_d");if(d)d.open=true}break}
+  case"wkPrev":ppSetWeek(B.wk-1);break;
+  case"wkNext":ppSetWeek(B.wk+1);break;
+  case"wkNow":ppSetWeek(ppCurWeek());break;
+  case"wkPick":{const i=+el.dataset.i,p=PPCT[i];if(!p)return;
+   B.level=lvOf(p[0]);B.grade=String(p[0]);B.subj=p[1];B.pp=i;B.q="";B.only=false;
+   if(p[2]===""){B.lesson=String(p[3]);setPurpose()}else{B.lesson="";B.pur=ppTitle(p)+" ("+ppLabel(p)+")"}
+   render();const t=$("#bList");if(t)t.scrollIntoView({behavior:"smooth",block:"start"});break}
+  case"bTickPP":{const p=B.pp!=null?PPCT[B.pp]:null;if(!p)return;let n=0;ppMatch(p).forEach(e=>{if(availOf(e)>0&&!B.ticks[e.id]){B.ticks[e.id]=1;n++}});fillBorrow();toast(n?`Đã tích ${n} thiết bị theo PPCT`:"Các thiết bị theo PPCT đã được tích hoặc đã hết");break}
   case"bClear":B.ticks={};B.cond={};render();break;
-  case"bLevel":if(B.level!==v){B.level=v;B.grade="";B.lesson="";B.pur=""}render();break;
-  case"bGrade":B.grade=v;B.lesson="";B.pur="";render();break;
-  case"bSubj":B.subj=v;B.lesson="";B.pur="";render();break;
+  case"bLevel":if(B.level!==v){B.level=v;B.grade="";B.lesson="";B.pur=""}B.pp=null;render();break;
+  case"bGrade":B.grade=v;B.lesson="";B.pur="";B.pp=null;render();break;
+  case"bSubj":B.subj=v;B.lesson="";B.pur="";B.pp=null;render();break;
   case"addSubj":ADD.subj=v;render();break;case"addSrc":ADD.src=v;render();break;
   case"addLevel":ADD.level=v;if(v&&ADD.grade&&lvOf(ADD.grade)!==v)ADD.grade="";render();break;
   case"addGrade":ADD.grade=v;if(v)ADD.level=lvOf(v);render();break;
